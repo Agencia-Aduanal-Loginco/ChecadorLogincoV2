@@ -39,7 +39,7 @@ SECRET_KEY = get_env('SECRET_KEY', default='django-insecure-v$$9pkjnh6_zlez9xm7o
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_env('DEBUG', default='True', cast=bool)
 
-ALLOWED_HOSTS = get_env('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=list)
+ALLOWED_HOSTS = get_env('ALLOWED_HOSTS', default='*', cast=list)
 
 
 # Application definition
@@ -65,6 +65,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -151,6 +152,9 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / get_env('STATIC_ROOT', default='staticfiles')
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
+# Whitenoise configuration for serving static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / get_env('MEDIA_ROOT', default='media')
@@ -162,6 +166,36 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Production Security Settings
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# ALLOWED_HOSTS for production
+import os
+if 'DIGITALOCEAN_APP_DOMAIN' in os.environ:
+    ALLOWED_HOSTS.append(os.environ['DIGITALOCEAN_APP_DOMAIN'])
+if 'RENDER' in os.environ:
+    ALLOWED_HOSTS.append(os.environ.get('RENDER_EXTERNAL_HOSTNAME', ''))
+
+# Database configuration from DATABASE_URL (for production)
+if 'DATABASE_URL' in os.environ:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=True,
+        )
+    }
 
 # REST Framework
 REST_FRAMEWORK = {

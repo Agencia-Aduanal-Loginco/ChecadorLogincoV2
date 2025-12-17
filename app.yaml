@@ -1,0 +1,26 @@
+name: checador-loginco
+services:
+- name: web
+  environment_slug: python
+  github:
+    branch: main
+    deploy_on_push: true
+  build_command: |
+    pip install -r requirements.txt
+    python manage.py collectstatic --noinput
+    python manage.py migrate --noinput
+  run_command: gunicorn checador.wsgi:application --bind 0.0.0.0:8080 --workers 2 --timeout 120
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  routes:
+  - path: /
+  health_check:
+    http_path: /admin/login/
+  envs:
+  - key: DEBUG
+    value: "False"
+  - key: DJANGO_SETTINGS_MODULE
+    value: "checador.settings"
+  - key: PYTHONUNBUFFERED
+    value: "1"
