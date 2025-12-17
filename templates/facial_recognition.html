@@ -1,0 +1,295 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconocimiento Facial - Sistema de Asistencias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #video {
+            transform: scaleX(-1);
+            border-radius: 1rem;
+        }
+        #canvas {
+            display: none;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-user-check text-blue-600"></i>
+                Reconocimiento Facial
+            </h1>
+            <p class="text-gray-600">Marca tu entrada o salida usando reconocimiento facial</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="grid md:grid-cols-2 gap-0">
+                <!-- Video Section -->
+                <div class="bg-gray-900 p-6 flex flex-col items-center justify-center">
+                    <div class="w-full max-w-md">
+                        <div class="mb-4 text-center">
+                            <span id="cameraStatus" class="text-white text-sm">
+                                <i class="fas fa-circle text-red-500 animate-pulse"></i>
+                                Cámara desactivada
+                            </span>
+                        </div>
+                        
+                        <!-- Video Preview -->
+                        <div class="relative">
+                            <video id="video" autoplay playsinline class="w-full bg-black"></video>
+                            <div id="videoPlaceholder" class="w-full aspect-video bg-gray-800 rounded-2xl flex items-center justify-center">
+                                <div class="text-center text-gray-400">
+                                    <i class="fas fa-video-slash text-6xl mb-4"></i>
+                                    <p>Activa la cámara para comenzar</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <canvas id="canvas"></canvas>
+                        
+                        <!-- Camera Controls -->
+                        <div class="mt-4 flex gap-2">
+                            <button id="startCamera" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition">
+                                <i class="fas fa-video mr-2"></i>
+                                Activar Cámara
+                            </button>
+                            <button id="stopCamera" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition hidden">
+                                <i class="fas fa-video-slash mr-2"></i>
+                                Detener
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Section -->
+                <div class="p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Marcar Asistencia</h2>
+                    
+                    <!-- Action Buttons -->
+                    <div class="space-y-4 mb-6">
+                        <button id="btnEntrada" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl font-bold text-lg transition transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-arrow-right mr-2"></i>
+                            Marcar Entrada
+                        </button>
+                        
+                        <button id="btnSalida" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-4 rounded-xl font-bold text-lg transition transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Marcar Salida
+                        </button>
+                    </div>
+
+                    <!-- Loading Indicator -->
+                    <div id="loading" class="hidden text-center py-4">
+                        <div class="loader mx-auto mb-3"></div>
+                        <p class="text-gray-600">Procesando reconocimiento facial...</p>
+                    </div>
+
+                    <!-- Result Message -->
+                    <div id="result" class="hidden p-4 rounded-lg"></div>
+
+                    <!-- Info Box -->
+                    <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                        <div class="flex items-start">
+                            <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                            <div class="text-sm text-gray-700">
+                                <p class="font-semibold mb-1">Instrucciones:</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>Activa la cámara</li>
+                                    <li>Colócate frente a la cámara</li>
+                                    <li>Asegúrate de tener buena iluminación</li>
+                                    <li>Haz clic en Entrada o Salida</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Records -->
+                    <div class="mt-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Último Registro</h3>
+                        <div id="lastRecord" class="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                            <p>No hay registros recientes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-600">
+            <p>Sistema de Control de Asistencias © 2025</p>
+            <a href="/admin/" class="text-blue-600 hover:underline mt-2 inline-block">
+                <i class="fas fa-cog mr-1"></i>
+                Panel de Administración
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let context = canvas.getContext('2d');
+        let stream = null;
+
+        const startCameraBtn = document.getElementById('startCamera');
+        const stopCameraBtn = document.getElementById('stopCamera');
+        const btnEntrada = document.getElementById('btnEntrada');
+        const btnSalida = document.getElementById('btnSalida');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+        const loading = document.getElementById('loading');
+        const resultDiv = document.getElementById('result');
+        const lastRecordDiv = document.getElementById('lastRecord');
+
+        // Activar cámara
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    } 
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                videoPlaceholder.style.display = 'none';
+                startCameraBtn.classList.add('hidden');
+                stopCameraBtn.classList.remove('hidden');
+                cameraStatus.innerHTML = '<i class="fas fa-circle text-green-500 animate-pulse"></i> Cámara activa';
+                btnEntrada.disabled = false;
+                btnSalida.disabled = false;
+            } catch (err) {
+                showResult('error', 'Error al acceder a la cámara: ' + err.message);
+            }
+        });
+
+        // Detener cámara
+        stopCameraBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                video.style.display = 'none';
+                videoPlaceholder.style.display = 'flex';
+                startCameraBtn.classList.remove('hidden');
+                stopCameraBtn.classList.add('hidden');
+                cameraStatus.innerHTML = '<i class="fas fa-circle text-red-500 animate-pulse"></i> Cámara desactivada';
+                btnEntrada.disabled = true;
+                btnSalida.disabled = true;
+            }
+        });
+
+        // Capturar foto y enviar
+        async function capturarYEnviar(tipo) {
+            if (!stream) {
+                showResult('error', 'Por favor activa la cámara primero');
+                return;
+            }
+
+            // Capturar frame del video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convertir a blob
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('foto', blob, 'captura.jpg');
+                formData.append('tipo', tipo);
+
+                loading.classList.remove('hidden');
+                resultDiv.classList.add('hidden');
+                btnEntrada.disabled = true;
+                btnSalida.disabled = true;
+
+                try {
+                    const endpoint = tipo === 'entrada' ? 
+                        '/api/registros/marcar_entrada/' : 
+                        '/api/registros/marcar_salida/';
+
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        showResult('success', 
+                            `¡${tipo.charAt(0).toUpperCase() + tipo.slice(1)} registrada!<br>` +
+                            `<strong>${data.empleado}</strong> (${data.codigo})<br>` +
+                            `Hora: ${data.hora}<br>` +
+                            `Confianza: ${data.confianza}`
+                        );
+                        updateLastRecord(data);
+                    } else {
+                        showResult('error', data.message || 'No se pudo reconocer el rostro');
+                    }
+                } catch (error) {
+                    showResult('error', 'Error de conexión: ' + error.message);
+                } finally {
+                    loading.classList.add('hidden');
+                    btnEntrada.disabled = false;
+                    btnSalida.disabled = false;
+                }
+            }, 'image/jpeg', 0.95);
+        }
+
+        // Event listeners para botones
+        btnEntrada.addEventListener('click', () => capturarYEnviar('entrada'));
+        btnSalida.addEventListener('click', () => capturarYEnviar('salida'));
+
+        // Mostrar resultado
+        function showResult(type, message) {
+            resultDiv.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'border-green-500', 'border-red-500');
+            
+            if (type === 'success') {
+                resultDiv.classList.add('bg-green-100', 'border-l-4', 'border-green-500');
+                resultDiv.innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i>${message}`;
+            } else {
+                resultDiv.classList.add('bg-red-100', 'border-l-4', 'border-red-500');
+                resultDiv.innerHTML = `<i class="fas fa-exclamation-circle text-red-500 mr-2"></i>${message}`;
+            }
+        }
+
+        // Actualizar último registro
+        function updateLastRecord(data) {
+            const now = new Date();
+            lastRecordDiv.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold text-gray-800">${data.empleado}</p>
+                        <p class="text-xs text-gray-500">${data.codigo}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-medium">${data.hora}</p>
+                        <p class="text-xs text-gray-500">${now.toLocaleDateString('es-MX')}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Deshabilitar botones al inicio
+        btnEntrada.disabled = true;
+        btnSalida.disabled = true;
+    </script>
+</body>
+</html>
