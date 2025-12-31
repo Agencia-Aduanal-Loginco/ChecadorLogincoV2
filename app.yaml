@@ -1,12 +1,10 @@
 name: checador-loginco
 services:
 - name: web
-  environment_slug: python
+  dockerfile_path: Dockerfile
   github:
     branch: main
     deploy_on_push: true
-  build_command: bash build.sh
-  run_command: gunicorn checador.wsgi:application --bind 0.0.0.0:8080 --workers 2 --timeout 120
   http_port: 8080
   instance_count: 1
   instance_size_slug: basic-xxs
