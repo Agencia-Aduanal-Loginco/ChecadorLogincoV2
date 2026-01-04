@@ -184,6 +184,19 @@ if 'DIGITALOCEAN_APP_DOMAIN' in os.environ:
 if 'RENDER' in os.environ:
     ALLOWED_HOSTS.append(os.environ.get('RENDER_EXTERNAL_HOSTNAME', ''))
 
+# CSRF Trusted Origins
+CSRF_TRUSTED_ORIGINS = [
+    'https://checador-loginco-app-zd3ie.ondigitalocean.app',
+]
+
+# Add dynamically from environment if available
+if 'DIGITALOCEAN_APP_DOMAIN' in os.environ:
+    domain = os.environ['DIGITALOCEAN_APP_DOMAIN']
+    if not domain.startswith('http'):
+        domain = f'https://{domain}'
+    if domain not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(domain)
+
 # Database configuration from DATABASE_URL (for production)
 if 'DATABASE_URL' in os.environ:
     import dj_database_url
