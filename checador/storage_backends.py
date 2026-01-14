@@ -1,9 +1,19 @@
 import os
 from django.conf import settings
+from django.utils import timezone
 from storages.backends.s3boto3 import S3Boto3Storage
+from zoneinfo import ZoneInfo
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Zona horaria de México
+MEXICO_TZ = ZoneInfo('America/Mexico_City')
+
+
+def ahora_mexico():
+    """Retorna datetime actual en zona horaria de México"""
+    return timezone.now().astimezone(MEXICO_TZ)
 
 class StaticStorage(S3Boto3Storage):
     """Storage personalizado para archivos estáticos"""
@@ -31,15 +41,14 @@ class MediaStorage(S3Boto3Storage):
         """Personaliza el guardado de archivos media"""
         # Agregar timestamp para evitar colisiones
         import os
-        from datetime import datetime
-        
+
         # Separar nombre y extensión
         base_name, ext = os.path.splitext(name)
-        
-        # Agregar timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        # Agregar timestamp (hora de México)
+        timestamp = ahora_mexico().strftime('%Y%m%d_%H%M%S')
         new_name = f"{base_name}_{timestamp}{ext}"
-        
+
         logger.info(f"💾 Guardando archivo media: {new_name}")
         return super()._save(new_name, content)
 
@@ -79,22 +88,21 @@ def upload_ticket_photo(instance, filename):
     Uso en models.py: upload_to=upload_ticket_photo
     """
     import os
-    from datetime import datetime
-    
-    # Obtener información del registro
-    fecha = instance.fecha_hora or datetime.now()
+
+    # Obtener información del registro (hora de México)
+    fecha = instance.fecha_hora or ahora_mexico()
     placa = getattr(instance.idEquipo, 'placa', 'SIN_PLACA') if instance.idEquipo else 'SIN_EQUIPO'
-    
+
     # Limpiar placa para usar en nombre de archivo
     placa_clean = ''.join(c for c in placa if c.isalnum() or c in '-_')
-    
+
     # Generar nombre de archivo
     nombre, ext = os.path.splitext(filename)
     nuevo_nombre = f"ticket_{placa_clean}_{fecha.strftime('%Y%m%d_%H%M%S')}{ext}"
-    
+
     # Estructura de carpetas: tickets/año/mes/
     ruta = f"tickets/{fecha.year}/{fecha.month:02d}/{nuevo_nombre}"
-    
+
     logger.info(f"📸 Generando ruta para foto de ticket: {ruta}")
     return ruta
 
@@ -102,16 +110,15 @@ def upload_reporte_excel(filename):
     """
     Función para generar rutas para archivos de reportes Excel
     """
-    from datetime import datetime
-    
-    # Generar ruta con timestamp
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Generar ruta con timestamp (hora de México)
+    fecha_mx = ahora_mexico()
+    timestamp = fecha_mx.strftime('%Y%m%d_%H%M%S')
     nombre, ext = os.path.splitext(filename)
     nuevo_nombre = f"{nombre}_{timestamp}{ext}"
-    
+
     # Estructura: reportes/excel/año/
-    ruta = f"reportes/excel/{datetime.now().year}/{nuevo_nombre}"
-    
+    ruta = f"reportes/excel/{fecha_mx.year}/{nuevo_nombre}"
+
     logger.info(f"📊 Generando ruta para reporte Excel: {ruta}")
     return ruta
 

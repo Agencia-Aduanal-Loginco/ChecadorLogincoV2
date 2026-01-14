@@ -1,9 +1,18 @@
 from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from checador.storage_backends import MediaStorage
 from empleados.models import Empleado
+
+# Zona horaria de México
+MEXICO_TZ = ZoneInfo('America/Mexico_City')
+
+
+def fecha_mexico():
+    """Retorna la fecha actual en zona horaria de México"""
+    return timezone.now().astimezone(MEXICO_TZ).date()
 
 
 class RegistroAsistencia(models.Model):
@@ -21,7 +30,7 @@ class RegistroAsistencia(models.Model):
         verbose_name='Empleado'
     )
     fecha = models.DateField(
-        default=timezone.now,
+        default=fecha_mexico,
         verbose_name='Fecha'
     )
     hora_entrada = models.TimeField(

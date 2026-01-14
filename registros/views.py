@@ -4,7 +4,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 from .models import RegistroAsistencia
+
+# Zona horaria de México
+MEXICO_TZ = ZoneInfo('America/Mexico_City')
 from empleados.models import Empleado
 from .services import FacialRecognitionService
 from rest_framework import serializers as rest_serializers
@@ -95,8 +99,9 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
                 'message': mensaje
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Obtener o crear registro del día
-        hoy = timezone.now().date()
+        # Obtener o crear registro del día (usando hora de México)
+        ahora_mexico = timezone.now().astimezone(MEXICO_TZ)
+        hoy = ahora_mexico.date()
         registro, created = RegistroAsistencia.objects.get_or_create(
             empleado=empleado,
             fecha=hoy,
@@ -109,8 +114,8 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
             }
         )
         
-        # Actualizar según el tipo
-        ahora = timezone.now().time()
+        # Actualizar según el tipo (hora de México)
+        ahora = ahora_mexico.time()
         if tipo == 'entrada':
             if registro.hora_entrada:
                 return Response({
