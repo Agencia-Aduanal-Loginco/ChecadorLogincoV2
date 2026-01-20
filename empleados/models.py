@@ -90,3 +90,12 @@ class Empleado(models.Model):
     def tiene_rostro_registrado(self):
         """Verifica si el empleado tiene un rostro registrado"""
         return bool(self.embedding_rostro)
+    
+    def eliminar_rostro(self):
+        """Elimina el registro facial del empleado"""
+        self.embedding_rostro = None
+        if self.foto_rostro:
+            # Eliminar el archivo físico de la foto
+            self.foto_rostro.delete(save=False)
+            self.foto_rostro = None
+        self.save()

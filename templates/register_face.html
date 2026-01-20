@@ -45,15 +45,22 @@
                     <span class="text-sm text-gray-500">({{ empleado.codigo_empleado }})</span>
                 </p>
             </div>
-            <div>
+            <div class="flex items-center gap-2">
+                <span id="statusBadge">
+                    {% if empleado.tiene_rostro_registrado %}
+                        <span class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">
+                            <i class="fas fa-check-circle"></i> Rostro Registrado
+                        </span>
+                    {% else %}
+                        <span class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full text-sm font-semibold">
+                            <i class="fas fa-exclamation-circle"></i> Sin Rostro
+                        </span>
+                    {% endif %}
+                </span>
                 {% if empleado.tiene_rostro_registrado %}
-                    <span class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">
-                        <i class="fas fa-check-circle"></i> Rostro Registrado
-                    </span>
-                {% else %}
-                    <span class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full text-sm font-semibold">
-                        <i class="fas fa-exclamation-circle"></i> Sin Rostro
-                    </span>
+                <button id="deleteRostroBtn" class="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-2 rounded-full text-sm font-semibold transition" title="Eliminar rostro registrado">
+                    <i class="fas fa-trash"></i>
+                </button>
                 {% endif %}
             </div>
         </div>
@@ -141,6 +148,15 @@
                         <strong>Importante:</strong> Solo debe aparecer tu rostro en la imagen. Evita sombras y usa iluminación adecuada.
                     </p>
                 </div>
+                
+                {% if empleado.tiene_rostro_registrado %}
+                <div class="mt-4 bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                    <p class="text-sm text-blue-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Nota:</strong> Este empleado ya tiene un rostro registrado. Si el rostro actual es incorrecto, usa el botón <i class="fas fa-trash"></i> arriba para eliminarlo antes de registrar uno nuevo.
+                    </p>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Actions -->
@@ -394,6 +410,55 @@
             resultDiv.classList.add('bg-red-100', 'border-l-4', 'border-red-500', 'text-red-800');
             resultDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${message}`;
         }
+    }
+
+    // Eliminar rostro registrado
+    const deleteRostroBtn = document.getElementById('deleteRostroBtn');
+    if (deleteRostroBtn) {
+        deleteRostroBtn.addEventListener('click', async () => {
+            if (!confirm('¿Estás seguro de que deseas eliminar el rostro registrado?\n\nEsto permitirá registrar un nuevo rostro en caso de que el anterior haya sido incorrecto.')) {
+                return;
+            }
+            
+            deleteRostroBtn.disabled = true;
+            deleteRostroBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            resultDiv.classList.add('hidden');
+            
+            try {
+                const response = await fetch('/api/empleados/{{ empleado.pk }}/eliminar-rostro-session/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showResult('success', data.message || 'Rostro eliminado exitosamente');
+                    
+                    // Actualizar el badge de estado
+                    const statusBadge = document.getElementById('statusBadge');
+                    statusBadge.innerHTML = '<span class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full text-sm font-semibold"><i class="fas fa-exclamation-circle"></i> Sin Rostro</span>';
+                    
+                    // Ocultar el botón de eliminar
+                    deleteRostroBtn.style.display = 'none';
+                    
+                    // Habilitar la captura
+                    if (stream) {
+                        captureBtn.disabled = false;
+                    }
+                } else {
+                    showResult('error', data.message || 'Error al eliminar el rostro');
+                    deleteRostroBtn.disabled = false;
+                    deleteRostroBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                }
+            } catch (error) {
+                showResult('error', 'Error de conexión: ' + error.message);
+                deleteRostroBtn.disabled = false;
+                deleteRostroBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            }
+        });
     }
 
     // Limpiar al salir

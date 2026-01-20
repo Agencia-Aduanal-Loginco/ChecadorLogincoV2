@@ -110,6 +110,33 @@ class EmpleadoViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'message': message
             }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='eliminar-rostro')
+    def eliminar_rostro(self, request, pk=None):
+        """
+        Endpoint para eliminar el registro facial de un empleado.
+        Útil cuando se registró un rostro incorrecto.
+        """
+        empleado = self.get_object()
+        
+        if not empleado.tiene_rostro_registrado:
+            return Response({
+                'success': False,
+                'message': 'El empleado no tiene ningún rostro registrado'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            empleado.eliminar_rostro()
+            return Response({
+                'success': True,
+                'message': 'Registro facial eliminado exitosamente. Puedes registrar un nuevo rostro.',
+                'empleado': EmpleadoDetailSerializer(empleado).data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error al eliminar el rostro: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @login_required
@@ -173,3 +200,39 @@ def register_face_post(request, empleado_id):
             'success': False,
             'message': message
         }, status=400)
+
+
+@login_required
+def delete_face_post(request, empleado_id):
+    """
+    Vista POST para eliminar el rostro facial registrado.
+    Usa sesiones de Django.
+    """
+    from django.http import JsonResponse
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    
+    empleado = get_object_or_404(Empleado, pk=empleado_id)
+    
+    # Verificar permisos: solo staff puede eliminar
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'message': 'No tienes permisos'}, status=403)
+    
+    if not empleado.tiene_rostro_registrado:
+        return JsonResponse({
+            'success': False,
+            'message': 'El empleado no tiene ningún rostro registrado'
+        }, status=400)
+    
+    try:
+        empleado.eliminar_rostro()
+        return JsonResponse({
+            'success': True,
+            'message': 'Registro facial eliminado exitosamente. Puedes registrar un nuevo rostro.',
+        }, status=200)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error al eliminar el rostro: {str(e)}'
+        }, status=500)
