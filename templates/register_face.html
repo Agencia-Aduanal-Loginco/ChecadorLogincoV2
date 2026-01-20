@@ -90,12 +90,17 @@
             <canvas id="canvas"></canvas>
 
             <!-- Camera Controls -->
-            <div class="flex gap-2">
-                <button id="startCamera" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition">
-                    <i class="fas fa-video mr-2"></i>Activar Cámara
-                </button>
-                <button id="stopCamera" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition hidden">
-                    <i class="fas fa-video-slash mr-2"></i>Detener
+            <div class="space-y-2">
+                <div class="flex gap-2">
+                    <button id="startCamera" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+                        <i class="fas fa-video mr-2"></i>Activar Cámara
+                    </button>
+                    <button id="stopCamera" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition hidden">
+                        <i class="fas fa-video-slash mr-2"></i>Detener
+                    </button>
+                </div>
+                <button id="switchCamera" class="hidden w-full bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-semibold transition">
+                    <i class="fas fa-sync-alt mr-2"></i>Cambiar Cámara
                 </button>
             </div>
         </div>
@@ -186,6 +191,7 @@
     
     const startCameraBtn = document.getElementById('startCamera');
     const stopCameraBtn = document.getElementById('stopCamera');
+    const switchCameraBtn = document.getElementById('switchCamera');
     const captureBtn = document.getElementById('captureBtn');
     const retakeBtn = document.getElementById('retakeBtn');
     const registerBtn = document.getElementById('registerBtn');
@@ -196,6 +202,7 @@
     
     let stream = null;
     let capturedBlob = null;
+    let currentFacingMode = 'user'; // 'user' = frontal, 'environment' = trasera
 
     // Get CSRF token
     function getCookie(name) {
@@ -214,14 +221,19 @@
     }
     const csrftoken = getCookie('csrftoken');
 
-    // Activar cámara
-    startCameraBtn.addEventListener('click', async () => {
+    // Función para activar cámara con facing mode específico
+    async function activarCamara(facingMode) {
         try {
+            // Detener stream anterior si existe
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
             stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     width: { ideal: 1280 },
                     height: { ideal: 720 },
-                    facingMode: 'user'
+                    facingMode: facingMode
                 } 
             });
             video.srcObject = stream;
@@ -231,12 +243,25 @@
             
             startCameraBtn.classList.add('hidden');
             stopCameraBtn.classList.remove('hidden');
+            switchCameraBtn.classList.remove('hidden');
             captureBtn.disabled = false;
             
-            cameraStatus.innerHTML = '<i class="fas fa-circle text-green-500 animate-pulse"></i> Cámara activa';
+            const cameraType = facingMode === 'user' ? 'Frontal' : 'Trasera';
+            cameraStatus.innerHTML = `<i class="fas fa-circle text-green-500 animate-pulse"></i> Cámara ${cameraType} activa`;
         } catch (err) {
             showResult('error', 'Error al acceder a la cámara: ' + err.message);
         }
+    }
+
+    // Activar cámara
+    startCameraBtn.addEventListener('click', async () => {
+        await activarCamara(currentFacingMode);
+    });
+
+    // Cambiar cámara
+    switchCameraBtn.addEventListener('click', async () => {
+        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        await activarCamara(currentFacingMode);
     });
 
     // Detener cámara
@@ -254,6 +279,7 @@
             
             startCameraBtn.classList.remove('hidden');
             stopCameraBtn.classList.add('hidden');
+            switchCameraBtn.classList.add('hidden');
             captureBtn.disabled = true;
             
             cameraStatus.innerHTML = '<i class="fas fa-circle text-red-500 animate-pulse"></i> Cámara desactivada';
