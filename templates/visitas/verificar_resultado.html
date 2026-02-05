@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Resultado de Verificacion - Sistema de Asistencias{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-8">
+        {% if encontrada %}
+            <div class="text-center mb-6">
+                {% if visita.estado == 'autorizado' %}
+                    <div class="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-check text-green-600 text-4xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-green-600">Visita Autorizada</h1>
+                {% elif visita.estado == 'en_sitio' %}
+                    <div class="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-building text-blue-600 text-4xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-blue-600">Visitante en Sitio</h1>
+                {% elif visita.estado == 'pendiente' %}
+                    <div class="w-20 h-20 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-clock text-yellow-600 text-4xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-yellow-600">Pendiente de Autorizacion</h1>
+                {% else %}
+                    <div class="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-info text-gray-600 text-4xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-600">{{ visita.get_estado_display }}</h1>
+                {% endif %}
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500">Visitante</p>
+                        <p class="font-medium">{{ visita.nombre_visitante }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Empresa</p>
+                        <p class="font-medium">{{ visita.empresa|default:"-" }}</p>
+                    </div>
+                    <div class="col-span-2">
+                        <p class="text-gray-500">Motivo</p>
+                        <p class="font-medium">{{ visita.motivo }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Fecha/Hora</p>
+                        <p class="font-medium">{{ visita.fecha_programada|date:"d/m/Y" }} {{ visita.hora_programada|time:"H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center space-y-4">
+                {% if visita.puede_registrar_entrada %}
+                    <form action="{% url 'accion_visita' visita.pk 'entrada' %}" method="POST" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg">
+                            <i class="fas fa-sign-in-alt mr-2"></i>Registrar Entrada
+                        </button>
+                    </form>
+                {% endif %}
+
+                {% if visita.puede_registrar_salida %}
+                    <form action="{% url 'accion_visita' visita.pk 'salida' %}" method="POST" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Registrar Salida
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="text-center">
+                <div class="w-20 h-20 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-times text-red-600 text-4xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-red-600 mb-2">Visita No Encontrada</h1>
+                <p class="text-gray-600">No se encontro ninguna visita con el codigo: <strong>{{ codigo }}</strong></p>
+            </div>
+        {% endif %}
+
+        <div class="mt-8 text-center">
+            <a href="{% url 'verificar_qr' %}" class="text-blue-600 hover:text-blue-800">
+                <i class="fas fa-qrcode mr-2"></i>Escanear otro codigo
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

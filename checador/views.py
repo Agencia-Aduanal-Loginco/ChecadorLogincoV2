@@ -8,6 +8,8 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from empleados.models import Empleado
 from registros.models import RegistroAsistencia
+from permisos.models import SolicitudPermiso
+from visitas.models import Visita
 
 
 def login_view(request):
@@ -147,7 +149,21 @@ def dashboard_view(request):
         context['empleado'] = None
         messages.warning(request, 'No tienes un perfil de empleado asociado.')
     
-    # Estadísticas para staff
+    # Permisos del empleado
+    if context.get('empleado'):
+        empleado = context['empleado']
+        # Ultimos permisos del empleado
+        context['permisos_recientes'] = SolicitudPermiso.objects.filter(
+            empleado=empleado
+        ).select_related('tipo_permiso').order_by('-fecha_creacion')[:5]
+
+        # Conteo de permisos pendientes propios
+        context['mis_permisos_pendientes'] = SolicitudPermiso.objects.filter(
+            empleado=empleado,
+            estado='pendiente'
+        ).count()
+
+    # Estadisticas para staff
     if request.user.is_staff:
         hoy = timezone.now().date()
         context['total_empleados'] = Empleado.objects.filter(activo=True).count()
@@ -156,7 +172,23 @@ def dashboard_view(request):
             activo=True,
             embedding_rostro__isnull=True
         ).count()
-    
+
+        # Permisos pendientes de aprobar
+        context['permisos_por_aprobar'] = SolicitudPermiso.objects.filter(
+            estado='pendiente'
+        ).count()
+
+        # Visitas del dia
+        context['visitas_hoy'] = Visita.objects.filter(fecha_programada=hoy).count()
+        context['visitas_pendientes'] = Visita.objects.filter(
+            fecha_programada=hoy,
+            estado='pendiente'
+        ).count()
+        context['visitas_en_sitio'] = Visita.objects.filter(
+            fecha_programada=hoy,
+            estado='en_sitio'
+        ).count()
+
     return render(request, 'dashboard.html', context)
 
 

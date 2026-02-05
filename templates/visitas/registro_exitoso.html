@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Visita Registrada - Sistema de Asistencias{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-8 text-center">
+        {% if visita.estado == 'autorizado' %}
+            <div class="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-6">
+                <i class="fas fa-check text-green-600 text-4xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Visita Autorizada</h1>
+            <p class="text-gray-600 mb-6">Su visita ha sido registrada y autorizada automaticamente.</p>
+
+            {% if visita.codigo_qr %}
+            <div class="mb-6">
+                <p class="text-sm text-gray-500 mb-2">Presente este codigo QR al llegar:</p>
+                <img src="{{ visita.codigo_qr.url }}" alt="Codigo QR" class="mx-auto w-48 h-48">
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="w-20 h-20 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-6">
+                <i class="fas fa-clock text-yellow-600 text-4xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Visita Pendiente de Autorizacion</h1>
+            <p class="text-gray-600 mb-6">Su visita ha sido registrada y esta pendiente de autorizacion.</p>
+            <p class="text-sm text-gray-500">Recibira un correo electronico con el codigo QR una vez que su visita sea aprobada.</p>
+        {% endif %}
+
+        <div class="bg-gray-50 rounded-lg p-4 mt-6 text-left">
+            <h3 class="font-semibold text-gray-700 mb-3">Detalles de la visita</h3>
+            <div class="space-y-2 text-sm">
+                <p><strong>Codigo:</strong> {{ visita.codigo_corto }}</p>
+                <p><strong>Visitante:</strong> {{ visita.nombre_visitante }}</p>
+                <p><strong>Fecha:</strong> {{ visita.fecha_programada|date:"d/m/Y" }}</p>
+                <p><strong>Hora:</strong> {{ visita.hora_programada|time:"H:i" }}</p>
+                <p><strong>Motivo:</strong> {{ visita.motivo }}</p>
+            </div>
+        </div>
+
+        <div class="mt-8">
+            <a href="{% url 'registrar_visita' %}" class="text-blue-600 hover:text-blue-800">
+                <i class="fas fa-plus mr-2"></i>Registrar otra visita
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

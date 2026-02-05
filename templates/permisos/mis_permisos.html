@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Mis Permisos - Sistema de Asistencias{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-calendar-check mr-2 text-blue-600"></i>Mis Permisos
+        </h1>
+        <p class="text-gray-600 mt-2">Gestiona tus solicitudes de permisos laborales</p>
+    </div>
+    <a href="{% url 'nueva_solicitud' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+        <i class="fas fa-plus mr-2"></i>Nueva Solicitud
+    </a>
+</div>
+
+<!-- Estadisticas -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow-md p-4">
+        <div class="flex items-center">
+            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <i class="fas fa-file-alt text-blue-600 text-xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-2xl font-bold text-gray-800">{{ stats.total }}</p>
+                <p class="text-sm text-gray-500">Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4">
+        <div class="flex items-center">
+            <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                <i class="fas fa-clock text-yellow-600 text-xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-2xl font-bold text-gray-800">{{ stats.pendientes }}</p>
+                <p class="text-sm text-gray-500">Pendientes</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4">
+        <div class="flex items-center">
+            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <i class="fas fa-check-circle text-green-600 text-xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-2xl font-bold text-gray-800">{{ stats.aprobados }}</p>
+                <p class="text-sm text-gray-500">Aprobados</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4">
+        <div class="flex items-center">
+            <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <i class="fas fa-times-circle text-red-600 text-xl"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-2xl font-bold text-gray-800">{{ stats.rechazados }}</p>
+                <p class="text-sm text-gray-500">Rechazados</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de solicitudes -->
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periodo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dias</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Solicitud</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for solicitud in solicitudes %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background-color: {{ solicitud.tipo_permiso.color }}20; color: {{ solicitud.tipo_permiso.color }};">
+                            {{ solicitud.tipo_permiso.nombre }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ solicitud.fecha_inicio|date:"d/m/Y" }} - {{ solicitud.fecha_fin|date:"d/m/Y" }}
+                        {% if solicitud.es_por_horas %}
+                            <br><span class="text-xs text-gray-500">{{ solicitud.hora_inicio }} - {{ solicitud.hora_fin }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ solicitud.dias_solicitados }} dia{{ solicitud.dias_solicitados|pluralize:"s" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if solicitud.estado == 'borrador' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <i class="fas fa-edit mr-1"></i>Borrador
+                            </span>
+                        {% elif solicitud.estado == 'pendiente' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <i class="fas fa-clock mr-1"></i>Pendiente
+                            </span>
+                        {% elif solicitud.estado == 'aprobado' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check mr-1"></i>Aprobado
+                            </span>
+                        {% elif solicitud.estado == 'rechazado' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-times mr-1"></i>Rechazado
+                            </span>
+                        {% elif solicitud.estado == 'cancelado' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <i class="fas fa-ban mr-1"></i>Cancelado
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ solicitud.fecha_creacion|date:"d/m/Y H:i" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href="{% url 'detalle_permiso' solicitud.pk %}" class="text-blue-600 hover:text-blue-800 mr-2">
+                            <i class="fas fa-eye"></i> Ver
+                        </a>
+                        {% if solicitud.estado == 'borrador' %}
+                            <button onclick="enviarSolicitud({{ solicitud.pk }})" class="text-green-600 hover:text-green-800 mr-2">
+                                <i class="fas fa-paper-plane"></i> Enviar
+                            </button>
+                            <button onclick="cancelarSolicitud({{ solicitud.pk }})" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i> Cancelar
+                            </button>
+                        {% elif solicitud.estado == 'pendiente' %}
+                            <button onclick="cancelarSolicitud({{ solicitud.pk }})" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-times"></i> Cancelar
+                            </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <i class="fas fa-calendar-times text-4xl mb-4"></i>
+                        <p>No tienes solicitudes de permiso</p>
+                        <a href="{% url 'nueva_solicitud' %}" class="text-blue-600 hover:text-blue-800 mt-2 inline-block">
+                            Crear tu primera solicitud
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function enviarSolicitud(pk) {
+    if (confirm('Estas seguro de enviar esta solicitud para aprobacion?')) {
+        fetch(`/permisos/${pk}/enviar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+}
+
+function cancelarSolicitud(pk) {
+    if (confirm('Estas seguro de cancelar esta solicitud?')) {
+        fetch(`/permisos/${pk}/cancelar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

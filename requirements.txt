@@ -43,3 +43,9 @@ et_xmlfile==2.0.0
 gunicorn==23.0.0
 whitenoise==6.8.2
 dj-database-url==3.0.1
+
+# Scheduler
+django-apscheduler==0.6.2
+
+# QR Code generation
+qrcode[pil]==7.4.2

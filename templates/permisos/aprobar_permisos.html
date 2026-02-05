@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block title %}Aprobar Permisos - Sistema de Asistencias{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-800">
+        <i class="fas fa-check-circle mr-2 text-blue-600"></i>Aprobar Permisos
+    </h1>
+    <p class="text-gray-600 mt-2">Gestiona las solicitudes de permisos pendientes de aprobacion</p>
+</div>
+
+{% if solicitudes %}
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empleado</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periodo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dias</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for solicitud in solicitudes %}
+                <tr class="hover:bg-gray-50" id="row-{{ solicitud.pk }}">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10">
+                                {% if solicitud.empleado.foto_rostro %}
+                                    <img class="h-10 w-10 rounded-full object-cover" src="{{ solicitud.empleado.foto_rostro.url }}" alt="">
+                                {% else %}
+                                    <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                        <i class="fas fa-user text-gray-500"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">{{ solicitud.empleado.nombre_completo }}</div>
+                                <div class="text-sm text-gray-500">{{ solicitud.empleado.codigo_empleado }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background-color: {{ solicitud.tipo_permiso.color }}20; color: {{ solicitud.tipo_permiso.color }};">
+                            {{ solicitud.tipo_permiso.nombre }}
+                        </span>
+                        {% if not solicitud.tipo_permiso.afecta_salario %}
+                            <span class="text-xs text-gray-500 block">Sin goce</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ solicitud.fecha_inicio|date:"d/m/Y" }} - {{ solicitud.fecha_fin|date:"d/m/Y" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ solicitud.dias_solicitados }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title="{{ solicitud.motivo }}">
+                        {{ solicitud.motivo|truncatechars:50 }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button onclick="aprobarSolicitud({{ solicitud.pk }})"
+                            class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded mr-2">
+                            <i class="fas fa-check mr-1"></i>Aprobar
+                        </button>
+                        <button onclick="mostrarModalRechazo({{ solicitud.pk }})"
+                            class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded">
+                            <i class="fas fa-times mr-1"></i>Rechazar
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow-md p-12 text-center">
+    <i class="fas fa-check-double text-6xl text-green-300 mb-4"></i>
+    <h3 class="text-xl font-semibold text-gray-600">No hay solicitudes pendientes</h3>
+    <p class="text-gray-500 mt-2">Todas las solicitudes han sido procesadas.</p>
+</div>
+{% endif %}
+
+<!-- Modal de Rechazo -->
+<div id="modal-rechazo" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Rechazar Solicitud</h3>
+        <input type="hidden" id="rechazo-pk">
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Motivo del rechazo</label>
+            <textarea id="rechazo-comentarios" rows="3"
+                class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="Indica el motivo del rechazo..."></textarea>
+        </div>
+        <div class="flex justify-end space-x-4">
+            <button onclick="cerrarModalRechazo()"
+                class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded">
+                Cancelar
+            </button>
+            <button onclick="confirmarRechazo()"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                Rechazar
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function aprobarSolicitud(pk) {
+    if (confirm('Estas seguro de aprobar esta solicitud?')) {
+        fetch(`/permisos/${pk}/aprobar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById(`row-${pk}`).remove();
+                // Si no quedan filas, recargar
+                if (document.querySelectorAll('tbody tr').length === 0) {
+                    location.reload();
+                }
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+}
+
+function mostrarModalRechazo(pk) {
+    document.getElementById('rechazo-pk').value = pk;
+    document.getElementById('rechazo-comentarios').value = '';
+    const modal = document.getElementById('modal-rechazo');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function cerrarModalRechazo() {
+    const modal = document.getElementById('modal-rechazo');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function confirmarRechazo() {
+    const pk = document.getElementById('rechazo-pk').value;
+    const comentarios = document.getElementById('rechazo-comentarios').value;
+
+    fetch(`/permisos/${pk}/rechazar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `comentarios=${encodeURIComponent(comentarios)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            cerrarModalRechazo();
+            document.getElementById(`row-${pk}`).remove();
+            if (document.querySelectorAll('tbody tr').length === 0) {
+                location.reload();
+            }
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+[
+    {
+        "model": "permisos.tipopermiso",
+        "pk": 1,
+        "fields": {
+            "nombre": "Vacaciones",
+            "codigo": "VAC",
+            "descripcion": "Dias de vacaciones correspondientes al periodo anual",
+            "requiere_evidencia": false,
+            "dias_maximos": 15,
+            "dias_anticipacion": 7,
+            "afecta_salario": true,
+            "color": "#3B82F6",
+            "activo": true
+        }
+    },
+    {
+        "model": "permisos.tipopermiso",
+        "pk": 2,
+        "fields": {
+            "nombre": "Incapacidad",
+            "codigo": "INC",
+            "descripcion": "Incapacidad medica con documento del IMSS o medico particular",
+            "requiere_evidencia": true,
+            "dias_maximos": 30,
+            "dias_anticipacion": 0,
+            "afecta_salario": true,
+            "color": "#EF4444",
+            "activo": true
+        }
+    },
+    {
+        "model": "permisos.tipopermiso",
+        "pk": 3,
+        "fields": {
+            "nombre": "Permiso Personal",
+            "codigo": "PER",
+            "descripcion": "Permiso para asuntos personales con goce de sueldo",
+            "requiere_evidencia": false,
+            "dias_maximos": 3,
+            "dias_anticipacion": 1,
+            "afecta_salario": true,
+            "color": "#8B5CF6",
+            "activo": true
+        }
+    },
+    {
+        "model": "permisos.tipopermiso",
+        "pk": 4,
+        "fields": {
+            "nombre": "Dias Economicos",
+            "codigo": "ECO",
+            "descripcion": "Dias economicos correspondientes al contrato laboral",
+            "requiere_evidencia": false,
+            "dias_maximos": 3,
+            "dias_anticipacion": 1,
+            "afecta_salario": true,
+            "color": "#10B981",
+            "activo": true
+        }
+    },
+    {
+        "model": "permisos.tipopermiso",
+        "pk": 5,
+        "fields": {
+            "nombre": "Permiso Sin Goce de Sueldo",
+            "codigo": "SGS",
+            "descripcion": "Permiso sin goce de sueldo para asuntos personales",
+            "requiere_evidencia": false,
+            "dias_maximos": 15,
+            "dias_anticipacion": 3,
+            "afecta_salario": false,
+            "color": "#6B7280",
+            "activo": true
+        }
+    }
+]

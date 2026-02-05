@@ -78,6 +78,24 @@ python manage.py collectstatic --noinput
 python manage.py shell
 ```
 
+### Scheduler de Reportes
+```bash
+# Ver estado de jobs programados
+python manage.py scheduler status
+
+# Iniciar scheduler manualmente
+python manage.py scheduler start
+
+# Ver historial de ejecuciones
+python manage.py scheduler list
+python manage.py scheduler list --limit 20
+
+# Enviar reporte manual (comando existente)
+python manage.py enviar_reporte diario
+python manage.py enviar_reporte semanal
+python manage.py enviar_reporte quincenal
+```
+
 ## Architecture
 
 ### Core Apps
@@ -189,6 +207,55 @@ To switch from SQLite to PostgreSQL:
 - `media/rostros/` - employee facial photos
 - `media/asistencias/` - attendance record photos
 - Served automatically when `DEBUG=True`
+
+## Scheduler Automático de Reportes
+
+### Configuración
+- **Sistema**: Django APScheduler (reemplaza cron)
+- **Archivo principal**: `reportes/scheduler.py`
+- **Inicio automático**: Se inicia al ejecutar `runserver` o `gunicorn` via `reportes/apps.py`
+- **Base de datos**: Usa tablas `django_apscheduler_djangojob` y `django_apscheduler_djangojobexecution`
+
+### Horarios Configurados
+- **Reporte diario**: Lunes a Sábado, 11:50am
+- **Reporte semanal**: Viernes, 11:50am
+- **Reporte quincenal**: Días 14 y 29 de cada mes, 11:50am
+- **Limpieza de logs**: Diario, 00:00am (elimina ejecuciones >7 días)
+
+### Ventajas sobre Cron
+- Integración nativa con Django (acceso al ORM, settings, etc.)
+- Logs automáticos en base de datos
+- Gestión visual desde el admin de Django
+- Portabilidad (funciona en Windows, Docker, etc.)
+- No requiere configuración del servidor
+- Testing más fácil en desarrollo
+
+### Ver Documentación Completa
+- `SCHEDULER_MIGRATION.md` - Guía completa de migración y uso
+- Admin panel: Django Apscheduler → Django jobs / Django job executions
+
+## SendGrid Configuration
+
+### Email Settings
+- **Backend**: SMTP via SendGrid
+- **Configuration**: Lines 259-266 in `checador/settings.py`
+- **Required env vars**: `SENDGRID_API_KEY`, `DEFAULT_FROM_EMAIL`
+
+### Testing Email
+```bash
+# Test SendGrid configuration
+python test_sendgrid.py your_email@example.com
+```
+
+### Common Issues
+- **API Key not configured**: Add `SENDGRID_API_KEY` to `.env` file
+- **Sender not verified**: Verify email in SendGrid → Settings → Sender Authentication
+- **Free plan limit**: 100 emails/day
+
+### Usage in Code
+- Report emails sent via `reportes/services/generador_email.py`
+- Uses Django's `send_mail()` and `EmailMultiAlternatives`
+- See `SENDGRID_SETUP.md` for detailed setup instructions
 
 ## Troubleshooting
 

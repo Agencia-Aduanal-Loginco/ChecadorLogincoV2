@@ -41,6 +41,22 @@ class Empleado(models.Model):
         max_length=100,
         verbose_name='Departamento'
     )
+    departamento_obj = models.ForeignKey(
+        'organizacion.Departamento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='empleados',
+        verbose_name='Departamento (Estructura)'
+    )
+    supervisor_directo = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subordinados',
+        verbose_name='Supervisor Directo'
+    )
     puesto = models.CharField(
         max_length=100,
         verbose_name='Puesto',
@@ -50,6 +66,16 @@ class Empleado(models.Model):
         verbose_name='Fecha de Ingreso',
         null=True,
         blank=True
+    )
+
+    # Horario predeterminado
+    horario_predeterminado = models.ForeignKey(
+        'horarios.TipoHorario',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='empleados_predeterminados',
+        verbose_name='Horario Predeterminado'
     )
 
     # Estatus
@@ -99,3 +125,30 @@ class Empleado(models.Model):
             self.foto_rostro.delete(save=False)
             self.foto_rostro = None
         self.save()
+
+    def get_supervisores(self):
+        """Retorna lista de supervisores que pueden aprobar permisos"""
+        from organizacion.models import RelacionSupervision
+        supervisores = []
+
+        # Supervisor directo
+        if self.supervisor_directo:
+            supervisores.append(self.supervisor_directo)
+
+        # Supervisores de relaciones de supervision
+        relaciones = RelacionSupervision.objects.filter(
+            subordinado=self,
+            puede_autorizar_permisos=True,
+            activo=True
+        ).select_related('supervisor')
+
+        for relacion in relaciones:
+            if relacion.esta_vigente() and relacion.supervisor not in supervisores:
+                supervisores.append(relacion.supervisor)
+
+        # Responsable del departamento
+        if self.departamento_obj and self.departamento_obj.responsable:
+            if self.departamento_obj.responsable not in supervisores:
+                supervisores.append(self.departamento_obj.responsable)
+
+        return supervisores

@@ -1,0 +1,25 @@
+VISITA AUTORIZADA
+=================
+
+Estimado/a {{ visita.nombre_visitante }},
+
+Su visita ha sido autorizada.
+
+CODIGO DE VISITA: {{ visita.codigo_corto }}
+
+Detalles de su visita:
+- Fecha: {{ visita.fecha_programada|date:"d/m/Y" }}
+- Hora: {{ visita.hora_programada|time:"H:i" }}
+- Motivo: {{ visita.motivo.nombre }}
+{% if visita.departamento_destino %}- Departamento: {{ visita.departamento_destino.nombre }}{% endif %}
+{% if visita.persona_a_visitar %}- Persona a visitar: {{ visita.persona_a_visitar.nombre_completo }}{% endif %}
+- Duracion estimada: {{ visita.duracion_estimada }} minutos
+
+IMPORTANTE:
+- Llegue puntualmente a la hora programada
+- Presente una identificacion oficial al momento de su registro
+- Proporcione el codigo de visita al personal de recepcion
+
+---
+Este es un correo automatico, por favor no responda a este mensaje.
+Sistema de Control de Asistencias

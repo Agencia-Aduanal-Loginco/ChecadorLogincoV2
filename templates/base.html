@@ -11,48 +11,163 @@
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Alpine.js para interactividad -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak] { display: none !important; }</style>
+
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-100">
     <!-- Navbar -->
-    <nav class="bg-blue-600 shadow-lg">
+    <nav class="bg-blue-600 shadow-lg" x-data="{ open: false }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <span class="text-white text-xl font-bold">
+                    <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}/{% endif %}" class="text-white text-xl font-bold">
                         <i class="fas fa-clock mr-2"></i>
                         Sistema de Asistencias
-                    </span>
+                    </a>
                 </div>
-                <div class="flex items-center space-x-4">
+
+                <!-- Desktop Navigation -->
+                <div class="hidden lg:flex items-center space-x-1">
                     {% if user.is_authenticated %}
-                        <a href="{% url 'dashboard' %}" class="text-white hover:text-gray-200 px-3 py-2 rounded-md">
+                        <a href="{% url 'dashboard' %}" class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition">
                             <i class="fas fa-home mr-1"></i>Inicio
                         </a>
-                        <a href="{% url 'marcar_asistencia' %}" class="text-white hover:text-gray-200 px-3 py-2 rounded-md">
-                            <i class="fas fa-camera mr-1"></i>Marcar Asistencia
+                        <a href="{% url 'marcar_asistencia' %}" class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition">
+                            <i class="fas fa-camera mr-1"></i>Asistencia
                         </a>
+
+                        <!-- Dropdown: Permisos -->
+                        <div class="relative" x-data="{ dropPermisos: false }" @mouseenter="dropPermisos = true" @mouseleave="dropPermisos = false">
+                            <button class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition inline-flex items-center">
+                                <i class="fas fa-calendar-check mr-1"></i>Permisos
+                                <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                            <div x-show="dropPermisos" x-transition class="absolute left-0 mt-0 w-48 bg-white rounded-md shadow-lg z-50">
+                                <a href="{% url 'mis_permisos' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md">
+                                    <i class="fas fa-list mr-2"></i>Mis Permisos
+                                </a>
+                                {% if user.is_staff %}
+                                <a href="{% url 'aprobar_permisos' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md">
+                                    <i class="fas fa-check-circle mr-2"></i>Aprobar Permisos
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         {% if user.is_staff %}
-                            <a href="{% url 'empleados_lista' %}" class="text-white hover:text-gray-200 px-3 py-2 rounded-md">
-                                <i class="fas fa-users mr-1"></i>Empleados
-                            </a>
-                            <a href="{% url 'registros_lista' %}" class="text-white hover:text-gray-200 px-3 py-2 rounded-md">
-                                <i class="fas fa-list mr-1"></i>Registros
-                            </a>
+                        <!-- Dropdown: Administracion -->
+                        <div class="relative" x-data="{ dropAdmin: false }" @mouseenter="dropAdmin = true" @mouseleave="dropAdmin = false">
+                            <button class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition inline-flex items-center">
+                                <i class="fas fa-cogs mr-1"></i>Administracion
+                                <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                            <div x-show="dropAdmin" x-transition class="absolute left-0 mt-0 w-48 bg-white rounded-md shadow-lg z-50">
+                                <a href="{% url 'empleados_lista' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md">
+                                    <i class="fas fa-users mr-2"></i>Empleados
+                                </a>
+                                <a href="{% url 'registros_lista' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-list mr-2"></i>Registros
+                                </a>
+                                <a href="{% url 'asignacion_horarios' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-calendar-alt mr-2"></i>Horarios
+                                </a>
+                                <a href="{% url 'organigrama' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-sitemap mr-2"></i>Organigrama
+                                </a>
+                                <a href="{% url 'lista_visitas' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md">
+                                    <i class="fas fa-id-card mr-2"></i>Visitas
+                                </a>
+                            </div>
+                        </div>
                         {% endif %}
-                        <span class="text-white">|</span>
-                        <span class="text-white">{{ user.get_full_name|default:user.username }}</span>
-                        <a href="{% url 'logout' %}" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">
+
+                        <span class="text-blue-300">|</span>
+                        <span class="text-white text-sm">{{ user.get_full_name|default:user.username }}</span>
+                        <a href="{% url 'logout' %}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm transition">
                             <i class="fas fa-sign-out-alt mr-1"></i>Salir
                         </a>
                     {% else %}
-                        <a href="{% url 'login' %}" class="bg-white hover:bg-gray-100 text-blue-600 px-4 py-2 rounded-md font-semibold">
-                            <i class="fas fa-sign-in-alt mr-1"></i>Iniciar Sesión
+                        <a href="{% url 'login' %}" class="bg-white hover:bg-gray-100 text-blue-600 px-4 py-2 rounded-md font-semibold transition">
+                            <i class="fas fa-sign-in-alt mr-1"></i>Iniciar Sesion
+                        </a>
+                    {% endif %}
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="lg:hidden flex items-center">
+                    {% if user.is_authenticated %}
+                    <button @click="open = !open" class="text-white hover:bg-blue-700 p-2 rounded-md transition">
+                        <i x-show="!open" class="fas fa-bars text-xl"></i>
+                        <i x-show="open" class="fas fa-times text-xl" x-cloak></i>
+                    </button>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="bg-white hover:bg-gray-100 text-blue-600 px-4 py-2 rounded-md font-semibold text-sm transition">
+                            <i class="fas fa-sign-in-alt mr-1"></i>Iniciar Sesion
                         </a>
                     {% endif %}
                 </div>
             </div>
         </div>
+
+        <!-- Mobile Navigation Menu -->
+        {% if user.is_authenticated %}
+        <div x-show="open" x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-1"
+             class="lg:hidden bg-blue-700" x-cloak>
+            <div class="px-4 py-3 space-y-1">
+                <div class="text-blue-200 text-xs uppercase font-semibold px-3 py-1">{{ user.get_full_name|default:user.username }}</div>
+
+                <a href="{% url 'dashboard' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-home mr-2 w-5 text-center"></i>Inicio
+                </a>
+                <a href="{% url 'marcar_asistencia' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-camera mr-2 w-5 text-center"></i>Asistencia
+                </a>
+
+                <div class="text-blue-200 text-xs uppercase font-semibold px-3 pt-3 pb-1">Permisos</div>
+                <a href="{% url 'mis_permisos' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-calendar-check mr-2 w-5 text-center"></i>Mis Permisos
+                </a>
+                {% if user.is_staff %}
+                <a href="{% url 'aprobar_permisos' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-check-circle mr-2 w-5 text-center"></i>Aprobar Permisos
+                </a>
+                {% endif %}
+
+                {% if user.is_staff %}
+                <div class="text-blue-200 text-xs uppercase font-semibold px-3 pt-3 pb-1">Administracion</div>
+                <a href="{% url 'empleados_lista' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-users mr-2 w-5 text-center"></i>Empleados
+                </a>
+                <a href="{% url 'registros_lista' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-list mr-2 w-5 text-center"></i>Registros
+                </a>
+                <a href="{% url 'asignacion_horarios' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-calendar-alt mr-2 w-5 text-center"></i>Horarios
+                </a>
+                <a href="{% url 'organigrama' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-sitemap mr-2 w-5 text-center"></i>Organigrama
+                </a>
+                <a href="{% url 'lista_visitas' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-id-card mr-2 w-5 text-center"></i>Visitas
+                </a>
+                {% endif %}
+
+                <div class="border-t border-blue-600 mt-2 pt-2">
+                    <a href="{% url 'logout' %}" class="block bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm text-center transition">
+                        <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </nav>
 
     <!-- Mensajes -->

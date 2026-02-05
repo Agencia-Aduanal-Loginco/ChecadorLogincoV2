@@ -1,0 +1,30 @@
+# ============================================
+# Crontab para Sistema de Control de Asistencias
+# ============================================
+#
+# Instalacion:
+#   crontab /ruta/al/proyecto/crontab.txt
+#
+# O para agregar sin reemplazar crontabs existentes:
+#   crontab -l | cat - /ruta/al/proyecto/crontab.txt | crontab -
+#
+# Verificar que se instalo:
+#   crontab -l
+#
+# IMPORTANTE: Ajustar la variable PROYECTO a la ruta real del proyecto
+# ============================================
+
+# Variables
+PROYECTO=/home/xoyoc/Developer/ChecadorLogincoV2
+PYTHON=$PROYECTO/.venvChecadorLoginco/bin/python
+MANAGE=$PROYECTO/manage.py
+LOG=$PROYECTO/logs/cron.log
+
+# Reporte diario - Lunes a Sabado a las 11:50am
+50 11 * * 1-6 cd $PROYECTO && $PYTHON $MANAGE enviar_reporte diario >> $LOG 2>&1
+
+# Reporte semanal - Viernes a las 11:50am
+50 11 * * 5 cd $PROYECTO && $PYTHON $MANAGE enviar_reporte semanal >> $LOG 2>&1
+
+# Reporte quincenal - Dias 14 y 29 a las 11:50am
+50 11 14,29 * * cd $PROYECTO && $PYTHON $MANAGE enviar_reporte quincenal >> $LOG 2>&1

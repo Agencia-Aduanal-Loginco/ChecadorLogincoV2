@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Visita - Sistema de Asistencias{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'lista_visitas' %}" class="text-blue-600 hover:text-blue-800">
+        <i class="fas fa-arrow-left mr-2"></i>Volver a Visitas
+    </a>
+</div>
+
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">
+                    {{ visita.nombre_visitante }}
+                </h1>
+                <p class="text-gray-500">Codigo: {{ visita.codigo_corto }}</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                {% if visita.estado == 'pendiente' %}bg-yellow-100 text-yellow-800
+                {% elif visita.estado == 'autorizado' %}bg-green-100 text-green-800
+                {% elif visita.estado == 'en_sitio' %}bg-blue-100 text-blue-800
+                {% elif visita.estado == 'finalizado' %}bg-purple-100 text-purple-800
+                {% elif visita.estado == 'rechazado' %}bg-red-100 text-red-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ visita.get_estado_display }}
+            </span>
+        </div>
+
+        <!-- Datos del visitante -->
+        <div class="border-b border-gray-200 pb-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">
+                <i class="fas fa-user mr-2"></i>Datos del Visitante
+            </h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Empresa</p>
+                    <p class="font-medium">{{ visita.empresa|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Email</p>
+                    <p class="font-medium">{{ visita.email|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Telefono</p>
+                    <p class="font-medium">{{ visita.telefono|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Identificacion</p>
+                    <p class="font-medium">{{ visita.get_identificacion_tipo_display }}: {{ visita.identificacion_numero|default:"-" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalles de la visita -->
+        <div class="border-b border-gray-200 pb-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">
+                <i class="fas fa-clipboard-list mr-2"></i>Detalles de la Visita
+            </h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <p class="text-sm text-gray-500">Motivo</p>
+                    <p class="font-medium">{{ visita.motivo }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Departamento</p>
+                    <p class="font-medium">{{ visita.departamento_destino.nombre|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Duracion Estimada</p>
+                    <p class="font-medium">{{ visita.duracion_estimada }} minutos</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Programacion y Control -->
+        <div class="border-b border-gray-200 pb-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">
+                <i class="fas fa-calendar-alt mr-2"></i>Programacion y Control
+            </h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Fecha Programada</p>
+                    <p class="font-medium">{{ visita.fecha_programada|date:"d/m/Y" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Hora Programada</p>
+                    <p class="font-medium">{{ visita.hora_programada|time:"H:i" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Entrada</p>
+                    <p class="font-medium">{{ visita.fecha_entrada|date:"d/m/Y H:i"|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Salida</p>
+                    <p class="font-medium">{{ visita.fecha_salida|date:"d/m/Y H:i"|default:"-" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Code -->
+        {% if visita.codigo_qr %}
+        <div class="border-b border-gray-200 pb-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">
+                <i class="fas fa-qrcode mr-2"></i>Codigo QR
+            </h2>
+            <div class="text-center">
+                <img src="{{ visita.codigo_qr.url }}" alt="Codigo QR" class="mx-auto w-48 h-48">
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Autorizacion -->
+        {% if visita.autorizado_por %}
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">
+                <i class="fas fa-check-circle mr-2"></i>Autorizacion
+            </h2>
+            <div class="bg-gray-50 p-4 rounded">
+                <p class="text-sm">
+                    <strong>{{ visita.get_estado_display }}</strong> por {{ visita.autorizado_por.nombre_completo }}
+                    el {{ visita.fecha_autorizacion|date:"d/m/Y H:i" }}
+                </p>
+                {% if visita.comentarios_autorizacion %}
+                <p class="text-gray-600 mt-2">{{ visita.comentarios_autorizacion }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Acciones -->
+        <div class="flex justify-end space-x-4">
+            {% if visita.estado == 'pendiente' %}
+                <button onclick="autorizarVisita({{ visita.pk }})"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                    <i class="fas fa-check mr-2"></i>Autorizar
+                </button>
+                <button onclick="rechazarVisita({{ visita.pk }})"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                    <i class="fas fa-times mr-2"></i>Rechazar
+                </button>
+            {% elif visita.estado == 'autorizado' %}
+                <button onclick="registrarEntrada({{ visita.pk }})"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Registrar Entrada
+                </button>
+            {% elif visita.estado == 'en_sitio' %}
+                <button onclick="registrarSalida({{ visita.pk }})"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Registrar Salida
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function autorizarVisita(pk) {
+    if (confirm('Autorizar esta visita?')) {
+        accionVisita(pk, 'autorizar');
+    }
+}
+
+function rechazarVisita(pk) {
+    if (confirm('Rechazar esta visita?')) {
+        accionVisita(pk, 'rechazar');
+    }
+}
+
+function registrarEntrada(pk) {
+    accionVisita(pk, 'entrada');
+}
+
+function registrarSalida(pk) {
+    accionVisita(pk, 'salida');
+}
+
+function accionVisita(pk, accion) {
+    fetch(`/visitas/${pk}/${accion}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

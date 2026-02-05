@@ -7,17 +7,18 @@ from .models import Empleado
 @admin.register(Empleado)
 class EmpleadoAdmin(admin.ModelAdmin):
     list_display = ('codigo_empleado', 'get_nombre', 'departamento', 'puesto', 'activo', 'tiene_rostro_registrado', 'acciones_rostro')
-    list_filter = ('activo', 'departamento', 'fecha_ingreso')
+    list_filter = ('activo', 'departamento', 'fecha_ingreso', 'departamento_obj')
     search_fields = ('codigo_empleado', 'user__username', 'user__first_name', 'user__last_name')
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion', 'tiene_rostro_registrado')
+    autocomplete_fields = ['departamento_obj', 'supervisor_directo']
     actions = ['eliminar_rostros_seleccionados']
-    
+
     fieldsets = (
         ('Usuario', {
             'fields': ('user',)
         }),
-        ('Información del Empleado', {
-            'fields': ('codigo_empleado', 'departamento', 'puesto', 'horas_semana', 'fecha_ingreso')
+        ('Informacion del Empleado', {
+            'fields': ('codigo_empleado', 'departamento', 'departamento_obj', 'supervisor_directo', 'puesto', 'horas_semana', 'fecha_ingreso', 'horario_predeterminado')
         }),
         ('Reconocimiento Facial', {
             'fields': ('foto_rostro', 'tiene_rostro_registrado')

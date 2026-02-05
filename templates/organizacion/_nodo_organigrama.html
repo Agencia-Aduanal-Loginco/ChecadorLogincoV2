@@ -1,0 +1,54 @@
+{% load static %}
+
+<div class="flex flex-col items-center">
+    <!-- Nodo del departamento -->
+    <div class="bg-white border-2 border-blue-500 rounded-lg shadow-lg p-4 min-w-64 text-center mb-4 hover:shadow-xl transition-shadow">
+        <div class="flex items-center justify-center mb-2">
+            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                {% if dept.responsable and dept.responsable.foto_rostro %}
+                    <img src="{{ dept.responsable.foto_rostro.url }}" alt="{{ dept.responsable.nombre_completo }}" class="w-12 h-12 rounded-full object-cover">
+                {% else %}
+                    <i class="fas fa-building text-blue-600 text-xl"></i>
+                {% endif %}
+            </div>
+        </div>
+        <h3 class="font-bold text-gray-800">{{ dept.nombre }}</h3>
+        <p class="text-sm text-gray-500">{{ dept.codigo }}</p>
+        {% if dept.responsable %}
+            <div class="mt-2 pt-2 border-t border-gray-200">
+                <p class="text-sm font-medium text-gray-700">
+                    <i class="fas fa-user mr-1"></i>{{ dept.responsable.nombre_completo }}
+                </p>
+                <p class="text-xs text-gray-500">{{ dept.responsable.puesto }}</p>
+            </div>
+        {% else %}
+            <div class="mt-2 pt-2 border-t border-gray-200">
+                <p class="text-sm text-gray-400 italic">Sin responsable asignado</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Linea conectora vertical -->
+    {% if dept.subdepartamentos.all %}
+    <div class="w-0.5 h-8 bg-blue-300"></div>
+
+    <!-- Linea conectora horizontal -->
+    <div class="flex items-start">
+        {% for subdept in dept.subdepartamentos.all %}
+            {% if subdept.activo %}
+                <div class="flex flex-col items-center mx-4">
+                    {% if forloop.first and not forloop.last %}
+                        <div class="h-0.5 w-full bg-blue-300 mb-0" style="margin-left: 50%;"></div>
+                    {% elif forloop.last and not forloop.first %}
+                        <div class="h-0.5 w-full bg-blue-300 mb-0" style="margin-right: 50%;"></div>
+                    {% elif not forloop.first and not forloop.last %}
+                        <div class="h-0.5 w-full bg-blue-300 mb-0"></div>
+                    {% endif %}
+                    <div class="w-0.5 h-8 bg-blue-300"></div>
+                    {% include 'organizacion/_nodo_organigrama.html' with dept=subdept nivel=nivel|add:1 %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

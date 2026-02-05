@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva Solicitud de Permiso - Sistema de Asistencias{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'mis_permisos' %}" class="text-blue-600 hover:text-blue-800">
+        <i class="fas fa-arrow-left mr-2"></i>Volver a Mis Permisos
+    </a>
+</div>
+
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">
+            <i class="fas fa-plus-circle mr-2 text-blue-600"></i>Nueva Solicitud de Permiso
+        </h1>
+
+        <form method="POST" enctype="multipart/form-data" id="permiso-form">
+            {% csrf_token %}
+
+            <!-- Tipo de Permiso -->
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="tipo_permiso">
+                    Tipo de Permiso <span class="text-red-500">*</span>
+                </label>
+                <select name="tipo_permiso" id="tipo_permiso" required
+                    class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Selecciona un tipo de permiso</option>
+                    {% for tipo in tipos_permiso %}
+                        <option value="{{ tipo.id }}"
+                            data-requiere-evidencia="{{ tipo.requiere_evidencia|yesno:'true,false' }}"
+                            data-dias-maximos="{{ tipo.dias_maximos|default:'' }}"
+                            data-color="{{ tipo.color }}">
+                            {{ tipo.nombre }}{% if not tipo.afecta_salario %} (Sin goce de sueldo){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <p id="tipo-info" class="text-sm text-gray-500 mt-1"></p>
+            </div>
+
+            <!-- Fechas -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="fecha_inicio">
+                        Fecha de Inicio <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="fecha_inicio" id="fecha_inicio" required
+                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="fecha_fin">
+                        Fecha de Fin <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="fecha_fin" id="fecha_fin" required
+                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Horas (opcional) -->
+            <div class="mb-4">
+                <label class="inline-flex items-center">
+                    <input type="checkbox" id="es_por_horas" class="form-checkbox h-5 w-5 text-blue-600">
+                    <span class="ml-2 text-gray-700">Es permiso por horas</span>
+                </label>
+            </div>
+
+            <div id="horas-container" class="hidden grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="hora_inicio">
+                        Hora de Inicio
+                    </label>
+                    <input type="time" name="hora_inicio" id="hora_inicio"
+                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="hora_fin">
+                        Hora de Fin
+                    </label>
+                    <input type="time" name="hora_fin" id="hora_fin"
+                        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Motivo -->
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="motivo">
+                    Motivo <span class="text-red-500">*</span>
+                </label>
+                <textarea name="motivo" id="motivo" rows="4" required
+                    class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Describe el motivo de tu solicitud..."></textarea>
+            </div>
+
+            <!-- Evidencia -->
+            <div id="evidencia-container" class="mb-4 hidden">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="evidencia">
+                    Evidencia <span class="text-red-500">*</span>
+                </label>
+                <input type="file" name="evidencia" id="evidencia"
+                    class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-sm text-gray-500 mt-1">Sube un documento o imagen como evidencia.</p>
+            </div>
+
+            <!-- Resumen -->
+            <div id="resumen" class="mb-6 p-4 bg-gray-50 rounded-lg hidden">
+                <h3 class="font-bold text-gray-700 mb-2">Resumen de la solicitud</h3>
+                <p id="resumen-dias" class="text-sm text-gray-600"></p>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-end space-x-4">
+                <button type="submit" name="accion" value="borrador"
+                    class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-500">
+                    <i class="fas fa-save mr-2"></i>Guardar Borrador
+                </button>
+                <button type="submit" name="accion" value="enviar"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-paper-plane mr-2"></i>Enviar para Aprobacion
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tipoSelect = document.getElementById('tipo_permiso');
+    const evidenciaContainer = document.getElementById('evidencia-container');
+    const evidenciaInput = document.getElementById('evidencia');
+    const tipoInfo = document.getElementById('tipo-info');
+    const fechaInicio = document.getElementById('fecha_inicio');
+    const fechaFin = document.getElementById('fecha_fin');
+    const resumen = document.getElementById('resumen');
+    const resumenDias = document.getElementById('resumen-dias');
+    const esPorHoras = document.getElementById('es_por_horas');
+    const horasContainer = document.getElementById('horas-container');
+
+    // Tipo de permiso change
+    tipoSelect.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const requiereEvidencia = selected.dataset.requiereEvidencia === 'true';
+        const diasMaximos = selected.dataset.diasMaximos;
+
+        if (requiereEvidencia) {
+            evidenciaContainer.classList.remove('hidden');
+            evidenciaInput.required = true;
+        } else {
+            evidenciaContainer.classList.add('hidden');
+            evidenciaInput.required = false;
+        }
+
+        let info = '';
+        if (diasMaximos) {
+            info = `Maximo ${diasMaximos} dias permitidos.`;
+        }
+        tipoInfo.textContent = info;
+
+        actualizarResumen();
+    });
+
+    // Checkbox horas
+    esPorHoras.addEventListener('change', function() {
+        if (this.checked) {
+            horasContainer.classList.remove('hidden');
+            horasContainer.classList.add('grid');
+        } else {
+            horasContainer.classList.add('hidden');
+            horasContainer.classList.remove('grid');
+        }
+    });
+
+    // Fechas change
+    fechaInicio.addEventListener('change', actualizarResumen);
+    fechaFin.addEventListener('change', actualizarResumen);
+
+    function actualizarResumen() {
+        if (fechaInicio.value && fechaFin.value) {
+            const inicio = new Date(fechaInicio.value);
+            const fin = new Date(fechaFin.value);
+            const diff = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
+
+            if (diff > 0) {
+                resumen.classList.remove('hidden');
+                resumenDias.textContent = `Dias solicitados: ${diff} dia${diff > 1 ? 's' : ''}`;
+
+                const selected = tipoSelect.options[tipoSelect.selectedIndex];
+                const diasMaximos = parseInt(selected.dataset.diasMaximos);
+                if (diasMaximos && diff > diasMaximos) {
+                    resumenDias.innerHTML += `<br><span class="text-red-600">Excede el maximo permitido (${diasMaximos} dias)</span>`;
+                }
+            } else {
+                resumen.classList.add('hidden');
+            }
+        } else {
+            resumen.classList.add('hidden');
+        }
+    }
+
+    // Set min date to today
+    const today = new Date().toISOString().split('T')[0];
+    fechaInicio.min = today;
+    fechaFin.min = today;
+});
+</script>
+{% endblock %}

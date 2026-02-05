@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #2563eb;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9fafb;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+        }
+        .qr-container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .details p {
+            margin: 8px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Visita Autorizada</h1>
+    </div>
+    <div class="content">
+        <p>Estimado/a <strong>{{ visita.nombre_visitante }}</strong>,</p>
+
+        <p>Su visita ha sido autorizada. Por favor, presente el siguiente codigo QR al momento de su llegada:</p>
+
+        <div class="qr-container">
+            <img src="cid:qr_code" alt="Codigo QR" width="200" height="200">
+            <p style="margin-top: 10px; font-weight: bold;">Codigo: {{ visita.codigo_corto }}</p>
+        </div>
+
+        <div class="details">
+            <h3>Detalles de su visita:</h3>
+            <p><strong>Fecha:</strong> {{ visita.fecha_programada|date:"d/m/Y" }}</p>
+            <p><strong>Hora:</strong> {{ visita.hora_programada|time:"H:i" }}</p>
+            <p><strong>Motivo:</strong> {{ visita.motivo.nombre }}</p>
+            {% if visita.departamento_destino %}
+            <p><strong>Departamento:</strong> {{ visita.departamento_destino.nombre }}</p>
+            {% endif %}
+            {% if visita.persona_a_visitar %}
+            <p><strong>Persona a visitar:</strong> {{ visita.persona_a_visitar.nombre_completo }}</p>
+            {% endif %}
+            <p><strong>Duracion estimada:</strong> {{ visita.duracion_estimada }} minutos</p>
+        </div>
+
+        <p style="margin-top: 20px;"><strong>Importante:</strong></p>
+        <ul>
+            <li>Llegue puntualmente a la hora programada</li>
+            <li>Presente una identificacion oficial al momento de su registro</li>
+            <li>Conserve este correo o capture de pantalla del codigo QR</li>
+        </ul>
+    </div>
+    <div class="footer">
+        <p>Este es un correo automatico, por favor no responda a este mensaje.</p>
+        <p>&copy; Sistema de Control de Asistencias</p>
+    </div>
+</body>
+</html>

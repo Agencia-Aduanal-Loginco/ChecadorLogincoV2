@@ -1,0 +1,664 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencia - Sistema de Checador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #video {
+            transform: scaleX(-1);
+            border-radius: 1rem;
+        }
+        #canvas {
+            display: none;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .timeline-step {
+            position: relative;
+        }
+        .timeline-step::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: 100%;
+            height: 2px;
+            background: #e5e7eb;
+        }
+        .timeline-step:last-child::after {
+            display: none;
+        }
+        .timeline-step.completed::after {
+            background: #10b981;
+        }
+        .timeline-step.completed .timeline-icon {
+            background: #10b981;
+            color: white;
+        }
+        .timeline-step.active .timeline-icon {
+            background: #3b82f6;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-clock text-blue-600"></i>
+                Control de Asistencia
+            </h1>
+            <p class="text-gray-600">Sistema inteligente con control de horario de comida</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="grid lg:grid-cols-2 gap-0">
+                <!-- Video Section -->
+                <div class="bg-gray-900 p-6 flex flex-col items-center justify-center">
+                    <div class="w-full max-w-md">
+                        <div class="mb-4 text-center">
+                            <span id="cameraStatus" class="text-white text-sm">
+                                <i class="fas fa-circle text-red-500 animate-pulse"></i>
+                                Cámara desactivada
+                            </span>
+                        </div>
+                        
+                        <!-- Video Preview -->
+                        <div class="relative">
+                            <video id="video" autoplay playsinline class="w-full bg-black"></video>
+                            <div id="videoPlaceholder" class="w-full aspect-video bg-gray-800 rounded-2xl flex items-center justify-center">
+                                <div class="text-center text-gray-400">
+                                    <i class="fas fa-video-slash text-6xl mb-4"></i>
+                                    <p>Activa la cámara para comenzar</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <canvas id="canvas"></canvas>
+                        
+                        <!-- Camera Controls -->
+                        <div class="mt-4 space-y-2">
+                            <div class="flex gap-2">
+                                <button id="startCamera" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-semibold transition">
+                                    <i class="fas fa-video mr-2"></i>
+                                    Activar Cámara
+                                </button>
+                                <button id="stopCamera" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition hidden">
+                                    <i class="fas fa-video-slash mr-2"></i>
+                                    Detener
+                                </button>
+                            </div>
+                            <button id="switchCamera" class="hidden w-full bg-gray-700 hover:bg-gray-800 text-white px-4 py-3 rounded-lg font-semibold transition">
+                                <i class="fas fa-sync-alt mr-2"></i>
+                                Cambiar Cámara
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Section -->
+                <div class="p-8">
+                    <!-- Paso 1: Verificar Rostro -->
+                    <div id="paso1" class="space-y-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-user-check mr-2 text-blue-600"></i>
+                            Paso 1: Verificar Identidad
+                        </h2>
+                        
+                        <button id="btnVerificar" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-6 rounded-xl font-bold text-xl transition transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" disabled>
+                            <i class="fas fa-face-smile text-2xl mr-3"></i>
+                            Verificar Rostro
+                        </button>
+                        
+                        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
+                            <div class="flex items-start">
+                                <i class="fas fa-info-circle text-amber-500 mt-1 mr-3"></i>
+                                <div class="text-sm text-gray-700">
+                                    <p class="font-semibold mb-1">Instrucciones:</p>
+                                    <ul class="list-disc list-inside space-y-1">
+                                        <li>Activa la cámara</li>
+                                        <li>Colócate frente a la cámara con buena iluminación</li>
+                                        <li>Presiona "Verificar Rostro"</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Paso 2: Panel de Empleado (oculto inicialmente) -->
+                    <div id="paso2" class="hidden space-y-6">
+                        <!-- Info del Empleado -->
+                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    <div id="empleadoFoto" class="w-20 h-20 bg-blue-200 rounded-full flex items-center justify-center overflow-hidden">
+                                        <i class="fas fa-user text-blue-600 text-3xl"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 id="empleadoNombre" class="text-xl font-bold text-gray-800">-</h3>
+                                    <p id="empleadoCodigo" class="text-sm text-gray-600">-</p>
+                                    <p id="empleadoHorario" class="text-xs text-gray-500 mt-1">-</p>
+                                </div>
+                                <div class="text-right">
+                                    <p id="confianzaReconocimiento" class="text-sm font-semibold text-green-600">-</p>
+                                    <p id="horaActual" class="text-xs text-gray-500">-</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Visual -->
+                        <div id="timeline" class="bg-gray-50 p-6 rounded-xl">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-4">Progreso del día</h4>
+                            <div class="grid grid-cols-4 gap-4">
+                                <!-- Entrada -->
+                                <div class="timeline-step text-center" data-step="entrada">
+                                    <div class="timeline-icon w-12 h-12 mx-auto bg-gray-200 rounded-full flex items-center justify-center mb-2">
+                                        <i class="fas fa-door-open text-gray-500"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-gray-600">Entrada</p>
+                                    <p class="text-xs text-gray-500" data-time="entrada">--:--</p>
+                                </div>
+                                
+                                <!-- Salida Comida -->
+                                <div class="timeline-step text-center" data-step="salida_comida">
+                                    <div class="timeline-icon w-12 h-12 mx-auto bg-gray-200 rounded-full flex items-center justify-center mb-2">
+                                        <i class="fas fa-utensils text-gray-500"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-gray-600">Salida</p>
+                                    <p class="text-xs text-gray-500" data-time="salida_comida">--:--</p>
+                                </div>
+                                
+                                <!-- Entrada Comida -->
+                                <div class="timeline-step text-center" data-step="entrada_comida">
+                                    <div class="timeline-icon w-12 h-12 mx-auto bg-gray-200 rounded-full flex items-center justify-center mb-2">
+                                        <i class="fas fa-arrow-rotate-left text-gray-500"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-gray-600">Regreso</p>
+                                    <p class="text-xs text-gray-500" data-time="entrada_comida">--:--</p>
+                                </div>
+                                
+                                <!-- Salida Final -->
+                                <div class="timeline-step text-center" data-step="salida">
+                                    <div class="timeline-icon w-12 h-12 mx-auto bg-gray-200 rounded-full flex items-center justify-center mb-2">
+                                        <i class="fas fa-home text-gray-500"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-gray-600">Salida</p>
+                                    <p class="text-xs text-gray-500" data-time="salida">--:--</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mensaje de Estado -->
+                        <div id="mensajeEstado" class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                            <p class="text-sm text-gray-700">-</p>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="space-y-3">
+                            <button id="btnEntrada" class="btn-action w-full bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl font-bold text-lg transition transform hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none" disabled title="No disponible en este momento">
+                                <i class="fas fa-door-open mr-2"></i>
+                                Marcar Entrada
+                            </button>
+                            
+                            <button id="btnSalidaComida" class="btn-action w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-lg transition transform hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none" disabled title="No disponible en este momento">
+                                <i class="fas fa-utensils mr-2"></i>
+                                Salir a Comer
+                            </button>
+                            
+                            <button id="btnEntradaComida" class="btn-action w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl font-bold text-lg transition transform hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none" disabled title="No disponible en este momento">
+                                <i class="fas fa-arrow-rotate-left mr-2"></i>
+                                Regresar de Comer
+                            </button>
+                            
+                            <button id="btnSalida" class="btn-action w-full bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-bold text-lg transition transform hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none" disabled title="No disponible en este momento">
+                                <i class="fas fa-home mr-2"></i>
+                                Marcar Salida Final
+                            </button>
+                        </div>
+
+                        <!-- Botón para verificar de nuevo -->
+                        <button id="btnVerificarNuevo" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg font-semibold transition">
+                            <i class="fas fa-redo mr-2"></i>
+                            Verificar Otro Empleado
+                        </button>
+                    </div>
+
+                    <!-- Loading Indicator -->
+                    <div id="loading" class="hidden text-center py-8">
+                        <div class="loader mx-auto mb-3"></div>
+                        <p class="text-gray-600 font-semibold">Procesando reconocimiento facial...</p>
+                    </div>
+
+                    <!-- Result Message -->
+                    <div id="result" class="hidden mt-6 p-4 rounded-lg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-600">
+            <p>Sistema de Control de Asistencias © 2025</p>
+            <a href="/admin/" class="text-blue-600 hover:underline mt-2 inline-block">
+                <i class="fas fa-cog mr-1"></i>
+                Panel de Administración
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let context = canvas.getContext('2d');
+        let stream = null;
+        let empleadoActual = null;
+        let botonesDisponibles = [];
+
+        // Elementos DOM
+        const startCameraBtn = document.getElementById('startCamera');
+        const stopCameraBtn = document.getElementById('stopCamera');
+        const switchCameraBtn = document.getElementById('switchCamera');
+        const btnVerificar = document.getElementById('btnVerificar');
+        const btnEntrada = document.getElementById('btnEntrada');
+        const btnSalidaComida = document.getElementById('btnSalidaComida');
+        const btnEntradaComida = document.getElementById('btnEntradaComida');
+        const btnSalida = document.getElementById('btnSalida');
+        const btnVerificarNuevo = document.getElementById('btnVerificarNuevo');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+        const loading = document.getElementById('loading');
+        const resultDiv = document.getElementById('result');
+        const paso1 = document.getElementById('paso1');
+        const paso2 = document.getElementById('paso2');
+        
+        let currentFacingMode = 'user';
+
+        // Activar cámara
+        async function activarCamara(facingMode) {
+            try {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: facingMode
+                    } 
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                videoPlaceholder.style.display = 'none';
+                startCameraBtn.classList.add('hidden');
+                stopCameraBtn.classList.remove('hidden');
+                switchCameraBtn.classList.remove('hidden');
+                
+                const cameraType = facingMode === 'user' ? 'Frontal' : 'Trasera';
+                cameraStatus.innerHTML = `<i class="fas fa-circle text-green-500 animate-pulse"></i> Cámara ${cameraType} activa`;
+                
+                btnVerificar.disabled = false;
+            } catch (err) {
+                showResult('error', 'Error al acceder a la cámara: ' + err.message);
+            }
+        }
+
+        startCameraBtn.addEventListener('click', async () => {
+            await activarCamara(currentFacingMode);
+        });
+
+        switchCameraBtn.addEventListener('click', async () => {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            await activarCamara(currentFacingMode);
+        });
+
+        stopCameraBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                video.style.display = 'none';
+                videoPlaceholder.style.display = 'flex';
+                startCameraBtn.classList.remove('hidden');
+                stopCameraBtn.classList.add('hidden');
+                switchCameraBtn.classList.add('hidden');
+                cameraStatus.innerHTML = '<i class="fas fa-circle text-red-500 animate-pulse"></i> Cámara desactivada';
+                btnVerificar.disabled = true;
+            }
+        });
+
+        // Verificar rostro
+        btnVerificar.addEventListener('click', async () => {
+            if (!stream) {
+                showResult('error', 'Por favor activa la cámara primero');
+                return;
+            }
+
+            // Capturar frame del video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('foto', blob, 'verificacion.jpg');
+
+                mostrarLoading(true);
+                hideResult();
+
+                try {
+                    const response = await fetch('/api/registros/verificar_rostro/', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        empleadoActual = data.empleado;
+                        botonesDisponibles = data.botones_disponibles;
+                        
+                        // Mostrar información del empleado
+                        mostrarEmpleado(data);
+                        
+                        // Cambiar a paso 2
+                        paso1.classList.add('hidden');
+                        paso2.classList.remove('hidden');
+                        
+                        showResult('success', `¡Bienvenido ${data.empleado.nombre}!`);
+                    } else {
+                        showResult('error', data.message || 'No se pudo reconocer el rostro');
+                    }
+                } catch (error) {
+                    showResult('error', 'Error de conexión: ' + error.message);
+                } finally {
+                    mostrarLoading(false);
+                }
+            }, 'image/jpeg', 0.95);
+        });
+
+        // Mostrar información del empleado
+        function mostrarEmpleado(data) {
+            // Actualizar info del empleado
+            document.getElementById('empleadoNombre').textContent = data.empleado.nombre;
+            document.getElementById('empleadoCodigo').textContent = `Código: ${data.empleado.codigo}`;
+            document.getElementById('confianzaReconocimiento').textContent = `Confianza: ${data.confianza}`;
+            document.getElementById('horaActual').textContent = data.hora_actual;
+            
+            // Actualizar foto si existe
+            if (data.empleado.foto_rostro) {
+                document.getElementById('empleadoFoto').innerHTML = `<img src="${data.empleado.foto_rostro}" class="w-full h-full object-cover" alt="Foto empleado">`;
+            }
+            
+            // Actualizar horario
+            if (data.horario) {
+                let horarioTexto = `${data.horario.hora_entrada} - ${data.horario.hora_salida}`;
+                if (data.horario.tiene_comida) {
+                    horarioTexto += ` (Comida: ${data.horario.hora_inicio_comida} - ${data.horario.hora_fin_comida})`;
+                } else {
+                    horarioTexto += ' (Sin horario de comida)';
+                }
+                document.getElementById('empleadoHorario').textContent = horarioTexto;
+            } else {
+                document.getElementById('empleadoHorario').textContent = 'Sin horario asignado';
+            }
+            
+            // Actualizar timeline
+            actualizarTimeline(data.registro, data.horario);
+            
+            // Actualizar mensaje de estado
+            document.getElementById('mensajeEstado').innerHTML = `<p class="text-sm text-gray-700">${data.mensaje_estado}</p>`;
+            
+            // Habilitar/deshabilitar botones
+            actualizarBotones(data.botones_disponibles);
+        }
+
+        // Actualizar timeline visual
+        function actualizarTimeline(registro, horario) {
+            const pasos = ['entrada', 'salida_comida', 'entrada_comida', 'salida'];
+            
+            // Si el horario no tiene comida, ocultar pasos de comida
+            if (horario && !horario.tiene_comida) {
+                document.querySelector('[data-step="salida_comida"]').style.display = 'none';
+                document.querySelector('[data-step="entrada_comida"]').style.display = 'none';
+            } else {
+                document.querySelector('[data-step="salida_comida"]').style.display = 'block';
+                document.querySelector('[data-step="entrada_comida"]').style.display = 'block';
+            }
+            
+            pasos.forEach(paso => {
+                const stepElement = document.querySelector(`[data-step="${paso}"]`);
+                const timeElement = document.querySelector(`[data-time="${paso}"]`);
+                
+                let hora = null;
+                if (paso === 'entrada') hora = registro.hora_entrada;
+                else if (paso === 'salida_comida') hora = registro.hora_salida_comida;
+                else if (paso === 'entrada_comida') hora = registro.hora_entrada_comida;
+                else if (paso === 'salida') hora = registro.hora_salida;
+                
+                if (hora) {
+                    stepElement.classList.add('completed');
+                    timeElement.textContent = hora.substring(0, 5); // HH:MM
+                } else {
+                    stepElement.classList.remove('completed', 'active');
+                    timeElement.textContent = '--:--';
+                }
+            });
+            
+            // Marcar el siguiente paso como activo
+            const siguientePaso = pasos.find(paso => {
+                const hora = paso === 'entrada' ? registro.hora_entrada :
+                            paso === 'salida_comida' ? registro.hora_salida_comida :
+                            paso === 'entrada_comida' ? registro.hora_entrada_comida :
+                            registro.hora_salida;
+                return !hora;
+            });
+            
+            if (siguientePaso) {
+                const stepElement = document.querySelector(`[data-step="${siguientePaso}"]`);
+                if (horario && !horario.tiene_comida && (siguientePaso === 'salida_comida' || siguientePaso === 'entrada_comida')) {
+                    // Skip pasos de comida si no tiene horario de comida
+                } else {
+                    stepElement.classList.add('active');
+                }
+            }
+        }
+
+        // Actualizar estado de botones
+        function actualizarBotones(disponibles) {
+            const mapaBotones = {
+                'entrada': btnEntrada,
+                'salida_comida': btnSalidaComida,
+                'entrada_comida': btnEntradaComida,
+                'salida': btnSalida
+            };
+            
+            // Deshabilitar todos primero
+            Object.values(mapaBotones).forEach(btn => {
+                btn.disabled = true;
+                btn.classList.remove('ring-4', 'ring-offset-2');
+            });
+            
+            // Habilitar solo los disponibles
+            disponibles.forEach(tipo => {
+                const btn = mapaBotones[tipo];
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.add('ring-4', 'ring-offset-2');
+                    
+                    // Colores de ring según tipo
+                    if (tipo === 'entrada') btn.classList.add('ring-green-300');
+                    else if (tipo === 'salida_comida') btn.classList.add('ring-orange-300');
+                    else if (tipo === 'entrada_comida') btn.classList.add('ring-blue-300');
+                    else if (tipo === 'salida') btn.classList.add('ring-red-300');
+                }
+            });
+            
+            // Mensaje si no hay botones disponibles
+            if (disponibles.length === 0) {
+                document.getElementById('mensajeEstado').innerHTML = `
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                        <p class="text-sm text-green-700 font-semibold">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Todos los registros del día están completos
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // Marcar asistencia
+        async function marcarAsistencia(tipo) {
+            if (!stream) {
+                showResult('error', 'Por favor activa la cámara primero');
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('foto', blob, 'captura.jpg');
+                formData.append('tipo', tipo);
+
+                mostrarLoading(true);
+                hideResult();
+
+                // Deshabilitar todos los botones
+                document.querySelectorAll('.btn-action').forEach(btn => btn.disabled = true);
+
+                try {
+                    const endpoints = {
+                        'entrada': '/api/registros/marcar_entrada/',
+                        'salida_comida': '/api/registros/marcar_salida_comida/',
+                        'entrada_comida': '/api/registros/marcar_entrada_comida/',
+                        'salida': '/api/registros/marcar_salida/'
+                    };
+
+                    const response = await fetch(endpoints[tipo], {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        showResult('success', 
+                            `<strong>${data.message}</strong><br>` +
+                            `${data.empleado} (${data.codigo})<br>` +
+                            `Hora: ${data.hora}`
+                        );
+                        
+                        // Recargar estado después de marcar
+                        setTimeout(() => {
+                            verificarRostroSilencioso();
+                        }, 1500);
+                    } else {
+                        showResult('error', data.message || 'No se pudo registrar la asistencia');
+                        actualizarBotones(botonesDisponibles); // Restaurar botones
+                    }
+                } catch (error) {
+                    showResult('error', 'Error de conexión: ' + error.message);
+                    actualizarBotones(botonesDisponibles);
+                } finally {
+                    mostrarLoading(false);
+                }
+            }, 'image/jpeg', 0.95);
+        }
+
+        // Verificar rostro sin cambiar UI (para actualizar estado)
+        async function verificarRostroSilencioso() {
+            if (!stream) return;
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('foto', blob, 'verificacion.jpg');
+
+                try {
+                    const response = await fetch('/api/registros/verificar_rostro/', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        botonesDisponibles = data.botones_disponibles;
+                        actualizarTimeline(data.registro, data.horario);
+                        actualizarBotones(data.botones_disponibles);
+                        document.getElementById('mensajeEstado').innerHTML = `<p class="text-sm text-gray-700">${data.mensaje_estado}</p>`;
+                    }
+                } catch (error) {
+                    console.error('Error verificando rostro:', error);
+                }
+            }, 'image/jpeg', 0.95);
+        }
+
+        // Event listeners para botones de acción
+        btnEntrada.addEventListener('click', () => marcarAsistencia('entrada'));
+        btnSalidaComida.addEventListener('click', () => marcarAsistencia('salida_comida'));
+        btnEntradaComida.addEventListener('click', () => marcarAsistencia('entrada_comida'));
+        btnSalida.addEventListener('click', () => marcarAsistencia('salida'));
+
+        // Verificar nuevo empleado
+        btnVerificarNuevo.addEventListener('click', () => {
+            paso1.classList.remove('hidden');
+            paso2.classList.add('hidden');
+            empleadoActual = null;
+            botonesDisponibles = [];
+            hideResult();
+        });
+
+        // Mostrar resultado
+        function showResult(type, message) {
+            resultDiv.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'border-green-500', 'border-red-500');
+            
+            if (type === 'success') {
+                resultDiv.classList.add('bg-green-100', 'border-l-4', 'border-green-500');
+                resultDiv.innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i>${message}`;
+            } else {
+                resultDiv.classList.add('bg-red-100', 'border-l-4', 'border-red-500');
+                resultDiv.innerHTML = `<i class="fas fa-exclamation-circle text-red-500 mr-2"></i>${message}`;
+            }
+        }
+
+        function hideResult() {
+            resultDiv.classList.add('hidden');
+        }
+
+        function mostrarLoading(mostrar) {
+            if (mostrar) {
+                loading.classList.remove('hidden');
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

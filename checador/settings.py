@@ -57,11 +57,16 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'django_apscheduler',
     # apps
     'authentication',
     'empleados',
     'horarios',
     'registros',
+    'organizacion',
+    'permisos',
+    'visitas',
+    'reportes',
 ]
 
 MIDDLEWARE = [
@@ -252,14 +257,14 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Configuración de Email
+# Configuración de Email con SendGrid
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.sendgrid.net'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'apikey'
-EMAIL_HOST_PASSWORD = get_env('EMAIL_HOST_PASSWORD', default='SG.uZj2N8iCTn65ZDg8v4jg3g.CgNQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g7Dh_jQ65g')
-DEFAULT_FROM_EMAIL = 'Sistema de Checador <notificaciones@loginco.com.mx>'
+EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default=None)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Sistema de Checador <notificaciones@loginco.com.mx>')
 # === CONFIGURACIÓN DE DIGITALOCEAN SPACES ===
 # Solo configurar si USE_SPACES está habilitado
 if config('USE_SPACES', default=False, cast=bool):

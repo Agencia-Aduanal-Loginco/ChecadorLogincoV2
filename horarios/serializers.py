@@ -1,6 +1,46 @@
 from rest_framework import serializers
-from .models import Horario
+from .models import Horario, TipoHorario, AsignacionHorario
 from empleados.serializers import EmpleadoListSerializer
+
+
+class TipoHorarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoHorario
+        fields = (
+            'id', 'nombre', 'codigo', 'descripcion', 'color',
+            'hora_entrada', 'hora_salida', 'tolerancia_minutos',
+            'tiene_comida', 'hora_inicio_comida', 'hora_fin_comida',
+            'activo', 'fecha_creacion', 'fecha_actualizacion'
+        )
+        read_only_fields = ('id', 'fecha_creacion', 'fecha_actualizacion')
+
+
+class AsignacionHorarioSerializer(serializers.ModelSerializer):
+    tipo_horario_detalle = TipoHorarioSerializer(source='tipo_horario', read_only=True)
+
+    class Meta:
+        model = AsignacionHorario
+        fields = (
+            'id', 'empleado', 'fecha', 'tipo_horario', 'tipo_horario_detalle',
+            'notas', 'creado_por', 'fecha_creacion', 'fecha_actualizacion'
+        )
+        read_only_fields = ('id', 'creado_por', 'fecha_creacion', 'fecha_actualizacion')
+
+    def create(self, validated_data):
+        validated_data['creado_por'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class AsignacionBulkSerializer(serializers.Serializer):
+    """Asignar un tipo de horario a multiples empleados/fechas"""
+    tipo_horario = serializers.IntegerField()
+    empleados = serializers.ListField(child=serializers.IntegerField(), min_length=1)
+    fechas = serializers.ListField(child=serializers.DateField(), min_length=1)
+
+    def validate_tipo_horario(self, value):
+        if not TipoHorario.objects.filter(id=value, activo=True).exists():
+            raise serializers.ValidationError('Tipo de horario no encontrado o inactivo')
+        return value
 
 
 class HorarioSerializer(serializers.ModelSerializer):
@@ -14,6 +54,7 @@ class HorarioSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'empleado', 'empleado_detalle', 'dia_semana',
             'dia_semana_nombre', 'hora_entrada', 'hora_salida',
+            'tiene_comida', 'hora_inicio_comida', 'hora_fin_comida',
             'tolerancia_minutos', 'activo', 'horas_dia',
             'fecha_creacion', 'fecha_actualizacion'
         )
@@ -36,6 +77,7 @@ class HorarioCreateUpdateSerializer(serializers.ModelSerializer):
         model = Horario
         fields = (
             'empleado', 'dia_semana', 'hora_entrada', 'hora_salida',
+            'tiene_comida', 'hora_inicio_comida', 'hora_fin_comida',
             'tolerancia_minutos', 'activo'
         )
     

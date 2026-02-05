@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Permiso - Sistema de Asistencias{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'mis_permisos' %}" class="text-blue-600 hover:text-blue-800">
+        <i class="fas fa-arrow-left mr-2"></i>Volver a Mis Permisos
+    </a>
+</div>
+
+<div class="max-w-3xl mx-auto">
+    <!-- Detalle de la solicitud -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">
+                    {{ solicitud.tipo_permiso.nombre }}
+                </h1>
+                <p class="text-gray-500">Solicitud #{{ solicitud.id }}</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                {% if solicitud.estado == 'borrador' %}bg-gray-100 text-gray-800
+                {% elif solicitud.estado == 'pendiente' %}bg-yellow-100 text-yellow-800
+                {% elif solicitud.estado == 'aprobado' %}bg-green-100 text-green-800
+                {% elif solicitud.estado == 'rechazado' %}bg-red-100 text-red-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ solicitud.get_estado_display }}
+            </span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Empleado</h3>
+                <p class="text-gray-900">{{ solicitud.empleado.nombre_completo }}</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Fecha de Solicitud</h3>
+                <p class="text-gray-900">{{ solicitud.fecha_creacion|date:"d/m/Y H:i" }}</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Periodo</h3>
+                <p class="text-gray-900">
+                    {{ solicitud.fecha_inicio|date:"d/m/Y" }} - {{ solicitud.fecha_fin|date:"d/m/Y" }}
+                    {% if solicitud.es_por_horas %}
+                        <br><span class="text-sm text-gray-500">{{ solicitud.hora_inicio }} - {{ solicitud.hora_fin }}</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-1">Dias Solicitados</h3>
+                <p class="text-gray-900">{{ solicitud.dias_solicitados }} dia{{ solicitud.dias_solicitados|pluralize:"s" }}</p>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <h3 class="text-sm font-medium text-gray-500 mb-1">Motivo</h3>
+            <p class="text-gray-900 bg-gray-50 p-3 rounded">{{ solicitud.motivo }}</p>
+        </div>
+
+        {% if solicitud.evidencia %}
+        <div class="mt-6">
+            <h3 class="text-sm font-medium text-gray-500 mb-1">Evidencia</h3>
+            <a href="{{ solicitud.evidencia.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                <i class="fas fa-file mr-2"></i>Ver archivo adjunto
+            </a>
+        </div>
+        {% endif %}
+
+        {% if solicitud.estado == 'aprobado' or solicitud.estado == 'rechazado' %}
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Resolucion</h3>
+            <div class="bg-gray-50 p-4 rounded">
+                <p class="text-sm text-gray-600">
+                    <strong>{{ solicitud.get_estado_display }}</strong> por {{ solicitud.aprobador.nombre_completo }}
+                    el {{ solicitud.fecha_resolucion|date:"d/m/Y H:i" }}
+                </p>
+                {% if solicitud.comentarios_resolucion %}
+                <p class="text-gray-700 mt-2">{{ solicitud.comentarios_resolucion }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Acciones -->
+        {% if solicitud.estado == 'borrador' or solicitud.estado == 'pendiente' %}
+        <div class="mt-6 pt-6 border-t border-gray-200 flex justify-end space-x-4">
+            {% if solicitud.estado == 'borrador' %}
+                <button onclick="enviarSolicitud({{ solicitud.pk }})"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                    <i class="fas fa-paper-plane mr-2"></i>Enviar para Aprobacion
+                </button>
+            {% endif %}
+            <button onclick="cancelarSolicitud({{ solicitud.pk }})"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                <i class="fas fa-times mr-2"></i>Cancelar Solicitud
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Historial -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">
+            <i class="fas fa-history mr-2 text-blue-600"></i>Historial
+        </h2>
+
+        <div class="space-y-4">
+            {% for evento in historial %}
+            <div class="flex items-start">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center mr-3
+                    {% if evento.accion == 'creado' %}bg-blue-100 text-blue-600
+                    {% elif evento.accion == 'enviado' %}bg-yellow-100 text-yellow-600
+                    {% elif evento.accion == 'aprobado' %}bg-green-100 text-green-600
+                    {% elif evento.accion == 'rechazado' %}bg-red-100 text-red-600
+                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                    <i class="fas
+                        {% if evento.accion == 'creado' %}fa-plus
+                        {% elif evento.accion == 'enviado' %}fa-paper-plane
+                        {% elif evento.accion == 'aprobado' %}fa-check
+                        {% elif evento.accion == 'rechazado' %}fa-times
+                        {% else %}fa-edit{% endif %} text-sm"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-900">
+                        <strong>{{ evento.get_accion_display }}</strong>
+                        {% if evento.usuario %}por {{ evento.usuario.nombre_completo }}{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-500">{{ evento.fecha|date:"d/m/Y H:i" }}</p>
+                    {% if evento.comentarios %}
+                    <p class="text-sm text-gray-600 mt-1">{{ evento.comentarios }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-gray-500 text-center">Sin historial</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function enviarSolicitud(pk) {
+    if (confirm('Estas seguro de enviar esta solicitud para aprobacion?')) {
+        fetch(`/permisos/${pk}/enviar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+}
+
+function cancelarSolicitud(pk) {
+    if (confirm('Estas seguro de cancelar esta solicitud?')) {
+        fetch(`/permisos/${pk}/cancelar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '{% url "mis_permisos" %}';
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

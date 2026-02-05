@@ -22,6 +22,14 @@ class RegistroAsistencia(models.Model):
         ('entrada', 'Entrada'),
         ('salida', 'Salida'),
     ]
+    
+    INCIDENCIA_CHOICES = [
+        ('ninguna', 'Ninguna'),
+        ('registro_incompleto', 'Registro Incompleto'),
+        ('sin_entrada_comida', 'Falta entrada de comida'),
+        ('sin_salida_comida', 'Falta salida de comida'),
+        ('sin_salida', 'Falta salida final'),
+    ]
 
     empleado = models.ForeignKey(
         Empleado,
@@ -37,6 +45,16 @@ class RegistroAsistencia(models.Model):
         null=True,
         blank=True,
         verbose_name='Hora de Entrada'
+    )
+    hora_salida_comida = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Hora de Salida a Comida'
+    )
+    hora_entrada_comida = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Hora de Entrada de Comida'
     )
     hora_salida = models.TimeField(
         null=True,
@@ -97,6 +115,16 @@ class RegistroAsistencia(models.Model):
         default=False,
         verbose_name='Justificado'
     )
+    incidencia = models.CharField(
+        max_length=50,
+        choices=INCIDENCIA_CHOICES,
+        default='ninguna',
+        verbose_name='Incidencia'
+    )
+    descripcion_incidencia = models.TextField(
+        blank=True,
+        verbose_name='Descripción de Incidencia'
+    )
     notas = models.TextField(
         blank=True,
         verbose_name='Notas'
@@ -130,22 +158,21 @@ class RegistroAsistencia(models.Model):
         return 0
 
     def verificar_retardo(self):
-        """Verifica si el empleado llegó tarde según su horario"""
+        """Verifica si el empleado llego tarde segun su horario"""
         if not self.hora_entrada:
             return False
 
-        # Obtener el horario del día
-        dia_semana = self.fecha.isoweekday()
-        try:
-            horario = self.empleado.horarios.get(dia_semana=dia_semana, activo=True)
-            entrada_esperada = datetime.combine(self.fecha, horario.hora_entrada)
+        from horarios.services import obtener_horario_del_dia
+        horario_info = obtener_horario_del_dia(self.empleado, self.fecha)
+
+        if horario_info:
+            entrada_esperada = datetime.combine(self.fecha, horario_info['hora_entrada'])
             entrada_real = datetime.combine(self.fecha, self.hora_entrada)
-            tolerancia = timedelta(minutes=horario.tolerancia_minutos)
+            tolerancia = timedelta(minutes=horario_info['tolerancia_minutos'])
 
             self.retardo = entrada_real > (entrada_esperada + tolerancia)
             return self.retardo
-        except:
-            return False
+        return False
 
     def save(self, *args, **kwargs):
         """Override save para calcular campos automáticamente"""
@@ -160,6 +187,82 @@ class RegistroAsistencia(models.Model):
         """Verifica si el registro tiene entrada y salida"""
         return bool(self.hora_entrada and self.hora_salida)
 
+    def calcular_incidencias(self):
+        """Calcula y establece incidencias basadas en el estado del registro"""
+        # Si está justificado, no hay incidencia
+        if self.justificado:
+            self.incidencia = 'ninguna'
+            self.descripcion_incidencia = ''
+            return
+        
+        # Verificar si tiene entrada
+        if not self.hora_entrada:
+            self.incidencia = 'ninguna'  # Aún no ha empezado el día
+            return
+        
+        # Verificar si tiene salida de comida pero no entrada de comida
+        if self.hora_salida_comida and not self.hora_entrada_comida:
+            self.incidencia = 'sin_entrada_comida'
+            self.descripcion_incidencia = f'Salió a comer a las {self.hora_salida_comida} pero no registró entrada de comida'
+            return
+        
+        # Verificar si tiene entrada de comida pero no salida final
+        if self.hora_entrada_comida and not self.hora_salida:
+            self.incidencia = 'sin_salida'
+            self.descripcion_incidencia = f'Regresó de comer a las {self.hora_entrada_comida} pero no registró salida final'
+            return
+        
+        # Verificar si tiene entrada pero no salida final
+        if self.hora_entrada and not self.hora_salida:
+            self.incidencia = 'sin_salida'
+            self.descripcion_incidencia = f'Registró entrada a las {self.hora_entrada} pero no ha registrado salida'
+            return
+        
+        # Si todo está completo, no hay incidencia
+        self.incidencia = 'ninguna'
+        self.descripcion_incidencia = ''
+    
+    def obtener_botones_disponibles(self, hora_actual=None):
+        """Retorna lista de botones que deben estar habilitados segun el estado del registro"""
+        if hora_actual is None:
+            ahora_mexico = timezone.now().astimezone(MEXICO_TZ)
+            hora_actual = ahora_mexico.time()
+
+        from horarios.services import obtener_horario_del_dia
+        horario_info = obtener_horario_del_dia(self.empleado, self.fecha)
+
+        botones = []
+
+        # Sin entrada registrada -> solo entrada disponible
+        if not self.hora_entrada:
+            return ['entrada']
+
+        # Con entrada, sin salida a comida
+        if self.hora_entrada and not self.hora_salida_comida:
+            if horario_info and horario_info['tiene_comida']:
+                obj = horario_info['objeto']
+                if hasattr(obj, 'esta_en_horario_comida') and obj.esta_en_horario_comida(hora_actual):
+                    botones.extend(['salida_comida', 'salida'])
+                else:
+                    botones.append('salida')
+            else:
+                botones.append('salida')
+            return botones
+
+        # Con salida a comida, sin entrada de comida
+        if self.hora_salida_comida and not self.hora_entrada_comida:
+            return ['entrada_comida']
+
+        # Con entrada de comida, sin salida final
+        if self.hora_entrada_comida and not self.hora_salida:
+            return ['salida']
+
+        # Con salida final registrada -> ya no hay mas botones
+        if self.hora_salida:
+            return []
+
+        return []
+    
     @property
     def tiempo_trabajado_str(self):
         """Retorna las horas trabajadas en formato legible"""

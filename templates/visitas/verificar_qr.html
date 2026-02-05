@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}Verificar QR - Sistema de Asistencias{% endblock %}
+
+{% block extra_css %}
+<style>
+    #reader {
+        width: 100%;
+        max-width: 500px;
+    }
+    #reader video {
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="text-center mb-6">
+            <i class="fas fa-qrcode text-5xl text-blue-600 mb-4"></i>
+            <h1 class="text-2xl font-bold text-gray-800">Verificar Codigo QR</h1>
+            <p class="text-gray-600">Escanee el codigo QR del visitante o ingrese el codigo manualmente</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-200 mb-6">
+            <button id="tab-scanner" onclick="showTab('scanner')"
+                class="flex-1 py-2 px-4 text-center border-b-2 border-blue-600 text-blue-600 font-medium">
+                <i class="fas fa-camera mr-2"></i>Escanear QR
+            </button>
+            <button id="tab-manual" onclick="showTab('manual')"
+                class="flex-1 py-2 px-4 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                <i class="fas fa-keyboard mr-2"></i>Codigo Manual
+            </button>
+        </div>
+
+        <!-- Scanner -->
+        <div id="panel-scanner">
+            <div id="reader" class="mx-auto mb-4"></div>
+            <div class="text-center">
+                <button id="btn-cambiar-camara" onclick="cambiarCamara()"
+                    class="text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-sync-alt mr-1"></i>Cambiar camara
+                </button>
+            </div>
+        </div>
+
+        <!-- Manual input -->
+        <div id="panel-manual" class="hidden">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Codigo de Visita</label>
+                <input type="text" id="codigo-manual"
+                    class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ingrese el UUID o codigo corto">
+            </div>
+            <button onclick="verificarCodigo()"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <i class="fas fa-search mr-2"></i>Verificar
+            </button>
+        </div>
+
+        <!-- Resultado -->
+        <div id="resultado" class="mt-6 hidden">
+            <div id="resultado-contenido"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+<script>
+let html5QrCode;
+let camaraActual = 'environment';
+
+function showTab(tab) {
+    const tabScanner = document.getElementById('tab-scanner');
+    const tabManual = document.getElementById('tab-manual');
+    const panelScanner = document.getElementById('panel-scanner');
+    const panelManual = document.getElementById('panel-manual');
+
+    if (tab === 'scanner') {
+        tabScanner.classList.add('border-blue-600', 'text-blue-600');
+        tabScanner.classList.remove('border-transparent', 'text-gray-500');
+        tabManual.classList.remove('border-blue-600', 'text-blue-600');
+        tabManual.classList.add('border-transparent', 'text-gray-500');
+        panelScanner.classList.remove('hidden');
+        panelManual.classList.add('hidden');
+        iniciarScanner();
+    } else {
+        tabManual.classList.add('border-blue-600', 'text-blue-600');
+        tabManual.classList.remove('border-transparent', 'text-gray-500');
+        tabScanner.classList.remove('border-blue-600', 'text-blue-600');
+        tabScanner.classList.add('border-transparent', 'text-gray-500');
+        panelManual.classList.remove('hidden');
+        panelScanner.classList.add('hidden');
+        detenerScanner();
+    }
+}
+
+function iniciarScanner() {
+    if (html5QrCode && html5QrCode.isScanning) return;
+
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+        { facingMode: camaraActual },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+            procesarCodigo(decodedText);
+        },
+        (errorMessage) => {
+            // Ignorar errores de escaneo
+        }
+    ).catch(err => {
+        console.error("Error al iniciar la camara:", err);
+    });
+}
+
+function detenerScanner() {
+    if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(err => console.error(err));
+    }
+}
+
+function cambiarCamara() {
+    camaraActual = camaraActual === 'environment' ? 'user' : 'environment';
+    detenerScanner();
+    setTimeout(iniciarScanner, 500);
+}
+
+function verificarCodigo() {
+    const codigo = document.getElementById('codigo-manual').value.trim();
+    if (codigo) {
+        procesarCodigo(codigo);
+    }
+}
+
+function procesarCodigo(codigo) {
+    fetch('{% url "visitas:api-verificar-qr" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `codigo=${encodeURIComponent(codigo)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        mostrarResultado(data);
+    })
+    .catch(error => {
+        mostrarResultado({ success: false, error: 'Error de conexion' });
+    });
+}
+
+function mostrarResultado(data) {
+    const resultado = document.getElementById('resultado');
+    const contenido = document.getElementById('resultado-contenido');
+    resultado.classList.remove('hidden');
+
+    if (data.success) {
+        const v = data.visita;
+        let estadoClass = '';
+        let estadoIcon = '';
+
+        switch(v.estado) {
+            case 'autorizado':
+                estadoClass = 'bg-green-100 text-green-800';
+                estadoIcon = 'fa-check-circle';
+                break;
+            case 'en_sitio':
+                estadoClass = 'bg-blue-100 text-blue-800';
+                estadoIcon = 'fa-building';
+                break;
+            case 'pendiente':
+                estadoClass = 'bg-yellow-100 text-yellow-800';
+                estadoIcon = 'fa-clock';
+                break;
+            default:
+                estadoClass = 'bg-gray-100 text-gray-800';
+                estadoIcon = 'fa-info-circle';
+        }
+
+        let botonesHtml = '';
+        if (v.puede_entrada) {
+            botonesHtml += `<button onclick="registrarMovimiento('${v.codigo_corto}', 'entrada')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded mr-2"><i class="fas fa-sign-in-alt mr-2"></i>Registrar Entrada</button>`;
+        }
+        if (v.puede_salida) {
+            botonesHtml += `<button onclick="registrarMovimiento('${v.codigo_corto}', 'salida')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"><i class="fas fa-sign-out-alt mr-2"></i>Registrar Salida</button>`;
+        }
+
+        contenido.innerHTML = `
+            <div class="border rounded-lg p-4">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">${v.nombre_visitante}</h3>
+                        <p class="text-sm text-gray-500">${v.empresa || 'Sin empresa'}</p>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${estadoClass}">
+                        <i class="fas ${estadoIcon} mr-1"></i>${v.estado_display}
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div>
+                        <p class="text-gray-500">Codigo</p>
+                        <p class="font-medium">${v.codigo_corto}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Motivo</p>
+                        <p class="font-medium">${v.motivo}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Fecha</p>
+                        <p class="font-medium">${v.fecha_programada}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Hora</p>
+                        <p class="font-medium">${v.hora_programada}</p>
+                    </div>
+                </div>
+                <div class="text-center">
+                    ${botonesHtml}
+                </div>
+            </div>
+        `;
+    } else {
+        contenido.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                <i class="fas fa-times-circle text-red-500 text-4xl mb-2"></i>
+                <p class="text-red-800 font-medium">${data.error}</p>
+            </div>
+        `;
+    }
+}
+
+function registrarMovimiento(codigo, tipo) {
+    fetch('{% url "visitas:api-registrar-movimiento" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `codigo=${encodeURIComponent(codigo)}&tipo=${tipo}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            procesarCodigo(codigo);
+        } else {
+            alert(data.error);
+        }
+    });
+}
+
+// Iniciar scanner al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    iniciarScanner();
+});
+</script>
+{% endblock %}
