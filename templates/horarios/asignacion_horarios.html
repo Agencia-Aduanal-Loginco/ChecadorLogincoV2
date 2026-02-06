@@ -225,7 +225,7 @@ function horarioGrid() {
 
         init() {
             // Cargar asignaciones iniciales desde el contexto Django
-            const empleadosData = {{ empleados_data|safe }};
+            const empleadosData = {{ empleados_data_json|safe }};
             empleadosData.forEach(emp => {
                 Object.entries(emp.asignaciones).forEach(([fecha, data]) => {
                     const key = emp.id + '_' + fecha;
@@ -320,12 +320,12 @@ function horarioGrid() {
 
             this.loading = true;
             const tipoId = parseInt(this.bulkTipoHorario);
-            const empleadosData = {{ empleados_data|safe }};
+            const empleadosData = {{ empleados_data_json|safe }};
             const empIds = empleadosData.map(e => e.id);
             const fechas = [];
 
             // Solo dias laborales (no fines de semana)
-            const diasData = {{ dias|safe }};
+            const diasData = {{ dias_json|safe }};
             diasData.forEach(d => {
                 if (!d.es_fin_semana) {
                     fechas.push(d.fecha);
