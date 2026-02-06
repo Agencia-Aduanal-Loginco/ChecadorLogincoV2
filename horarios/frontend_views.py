@@ -1,5 +1,6 @@
 import calendar
-from datetime import date
+import json
+from datetime import date, time
 
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
@@ -7,6 +8,14 @@ from django.shortcuts import render
 from empleados.models import Empleado
 from organizacion.models import Departamento
 from .models import TipoHorario, AsignacionHorario
+
+
+class TimeEncoder(json.JSONEncoder):
+    """Encoder personalizado para serializar objetos time a JSON"""
+    def default(self, obj):
+        if isinstance(obj, time):
+            return obj.strftime('%H:%M:%S')
+        return super().default(obj)
 
 
 @login_required
@@ -114,9 +123,9 @@ def asignacion_horarios_view(request):
         'mes': mes,
         'anio': anio,
         'nombre_mes': nombres_meses[mes],
-        'dias': dias,
-        'empleados_data': empleados_data,
-        'tipos_horario': tipos_horario,
+        'dias': json.dumps(dias),
+        'empleados_data': json.dumps(empleados_data),
+        'tipos_horario': json.dumps(tipos_horario, cls=TimeEncoder),
         'departamentos': departamentos,
         'departamento_id': departamento_id,
         'mes_anterior': mes_ant,
