@@ -18,7 +18,11 @@ class EmpleadoAdmin(admin.ModelAdmin):
             'fields': ('user',)
         }),
         ('Informacion del Empleado', {
-            'fields': ('codigo_empleado', 'departamento', 'departamento_obj', 'supervisor_directo', 'puesto', 'horas_semana', 'fecha_ingreso', 'horario_predeterminado')
+            'fields': ('codigo_empleado', 'departamento', 'departamento_obj', 'supervisor_directo', 'puesto', 'horas_semana', 'fecha_ingreso')
+        }),
+        ('Horarios Predeterminados', {
+            'fields': ('horario_predeterminado', 'horario_sabado', 'descansa_sabado', 'horario_domingo', 'descansa_domingo'),
+            'description': 'Horario predeterminado aplica de Lunes a Viernes. Sábado y Domingo se configuran por separado.'
         }),
         ('Reconocimiento Facial', {
             'fields': ('foto_rostro', 'tiene_rostro_registrado')

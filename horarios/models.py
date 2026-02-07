@@ -174,9 +174,17 @@ class Horario(models.Model):
     
     @property
     def horas_dia(self):
-        """Calcula las horas de trabajo del día"""
+        """Calcula las horas de trabajo del día descontando tiempo de comida"""
         from datetime import datetime, timedelta
         entrada = datetime.combine(datetime.today(), self.hora_entrada)
         salida = datetime.combine(datetime.today(), self.hora_salida)
         diferencia = salida - entrada
+
+        # Descontar tiempo de comida si aplica
+        if self.tiene_comida and self.hora_inicio_comida and self.hora_fin_comida:
+            inicio_comida = datetime.combine(datetime.today(), self.hora_inicio_comida)
+            fin_comida = datetime.combine(datetime.today(), self.hora_fin_comida)
+            tiempo_comida = fin_comida - inicio_comida
+            diferencia -= tiempo_comida
+
         return diferencia.total_seconds() / 3600

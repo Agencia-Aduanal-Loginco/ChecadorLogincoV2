@@ -31,13 +31,15 @@ class EmpleadoDetailSerializer(serializers.ModelSerializer):
     user = UserNestedSerializer(read_only=True)
     nombre_completo = serializers.ReadOnlyField()
     tiene_rostro_registrado = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Empleado
         fields = (
             'id', 'codigo_empleado', 'user', 'nombre_completo',
             'foto_rostro', 'departamento', 'puesto', 'horas_semana',
             'fecha_ingreso', 'activo', 'tiene_rostro_registrado',
+            'horario_predeterminado', 'horario_sabado', 'descansa_sabado',
+            'horario_domingo', 'descansa_domingo',
             'fecha_creacion', 'fecha_actualizacion'
         )
         read_only_fields = ('id', 'fecha_creacion', 'fecha_actualizacion')
@@ -50,12 +52,14 @@ class EmpleadoCreateSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True)
     first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    
+
     class Meta:
         model = Empleado
         fields = (
             'id', 'codigo_empleado', 'departamento', 'puesto',
             'horas_semana', 'fecha_ingreso', 'activo',
+            'horario_predeterminado', 'horario_sabado', 'descansa_sabado',
+            'horario_domingo', 'descansa_domingo',
             'username', 'password', 'email', 'first_name', 'last_name'
         )
         read_only_fields = ('id',)
@@ -87,12 +91,14 @@ class EmpleadoUpdateSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True, required=False)
     first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    
+
     class Meta:
         model = Empleado
         fields = (
             'departamento', 'puesto', 'horas_semana', 'fecha_ingreso',
-            'activo', 'email', 'first_name', 'last_name'
+            'activo', 'horario_predeterminado', 'horario_sabado',
+            'descansa_sabado', 'horario_domingo', 'descansa_domingo',
+            'email', 'first_name', 'last_name'
         )
     
     def update(self, instance, validated_data):

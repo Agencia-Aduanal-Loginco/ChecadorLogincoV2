@@ -68,14 +68,43 @@ class Empleado(models.Model):
         blank=True
     )
 
-    # Horario predeterminado
+    # Horarios predeterminados por tipo de día
     horario_predeterminado = models.ForeignKey(
         'horarios.TipoHorario',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='empleados_predeterminados',
-        verbose_name='Horario Predeterminado'
+        verbose_name='Horario Lunes a Viernes',
+        help_text='Horario que aplica de lunes a viernes'
+    )
+    horario_sabado = models.ForeignKey(
+        'horarios.TipoHorario',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='empleados_sabado',
+        verbose_name='Horario Sábado',
+        help_text='Horario que aplica los sábados (dejar vacío si descansa)'
+    )
+    descansa_sabado = models.BooleanField(
+        default=False,
+        verbose_name='Descansa Sábado',
+        help_text='Si está marcado, el empleado descansa los sábados'
+    )
+    horario_domingo = models.ForeignKey(
+        'horarios.TipoHorario',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='empleados_domingo',
+        verbose_name='Horario Domingo',
+        help_text='Horario que aplica los domingos (dejar vacío si descansa)'
+    )
+    descansa_domingo = models.BooleanField(
+        default=True,
+        verbose_name='Descansa Domingo',
+        help_text='Si está marcado, el empleado descansa los domingos'
     )
 
     # Estatus

@@ -47,7 +47,8 @@ def asignacion_horarios_view(request):
 
     # Empleados filtrados
     empleados_qs = Empleado.objects.filter(activo=True).select_related(
-        'user', 'departamento_obj', 'horario_predeterminado'
+        'user', 'departamento_obj', 'horario_predeterminado',
+        'horario_sabado', 'horario_domingo'
     ).order_by('codigo_empleado')
     if departamento_id:
         empleados_qs = empleados_qs.filter(departamento_obj_id=departamento_id)
@@ -76,9 +77,48 @@ def asignacion_horarios_view(request):
         emp_asignaciones = {}
         for dia in dias:
             key = (emp.id, dia['fecha'])
+            fecha_obj = date(anio, mes, dia['numero'])
+            dia_semana = fecha_obj.isoweekday()  # 1=Lunes, 6=Sábado, 7=Domingo
+
             if key in asignaciones_dict:
                 emp_asignaciones[dia['fecha']] = asignaciones_dict[key]
-            elif emp.horario_predeterminado:
+            elif dia_semana == 6:  # Sábado
+                if emp.descansa_sabado:
+                    emp_asignaciones[dia['fecha']] = {
+                        'tipo_horario_id': None,
+                        'codigo': 'DESC',
+                        'color': '#9CA3AF',
+                        'nombre': 'Descanso',
+                        'es_predeterminado': True,
+                        'es_descanso': True,
+                    }
+                elif emp.horario_sabado:
+                    emp_asignaciones[dia['fecha']] = {
+                        'tipo_horario_id': emp.horario_sabado_id,
+                        'codigo': emp.horario_sabado.codigo,
+                        'color': emp.horario_sabado.color,
+                        'nombre': emp.horario_sabado.nombre,
+                        'es_predeterminado': True,
+                    }
+            elif dia_semana == 7:  # Domingo
+                if emp.descansa_domingo:
+                    emp_asignaciones[dia['fecha']] = {
+                        'tipo_horario_id': None,
+                        'codigo': 'DESC',
+                        'color': '#9CA3AF',
+                        'nombre': 'Descanso',
+                        'es_predeterminado': True,
+                        'es_descanso': True,
+                    }
+                elif emp.horario_domingo:
+                    emp_asignaciones[dia['fecha']] = {
+                        'tipo_horario_id': emp.horario_domingo_id,
+                        'codigo': emp.horario_domingo.codigo,
+                        'color': emp.horario_domingo.color,
+                        'nombre': emp.horario_domingo.nombre,
+                        'es_predeterminado': True,
+                    }
+            elif emp.horario_predeterminado:  # Lunes a Viernes
                 emp_asignaciones[dia['fecha']] = {
                     'tipo_horario_id': emp.horario_predeterminado_id,
                     'codigo': emp.horario_predeterminado.codigo,
@@ -92,6 +132,10 @@ def asignacion_horarios_view(request):
             'nombre': emp.nombre_completo,
             'departamento': emp.departamento_obj.nombre if emp.departamento_obj else emp.departamento,
             'horario_pred_id': emp.horario_predeterminado_id,
+            'horario_sabado_id': emp.horario_sabado_id,
+            'horario_domingo_id': emp.horario_domingo_id,
+            'descansa_sabado': emp.descansa_sabado,
+            'descansa_domingo': emp.descansa_domingo,
             'asignaciones': emp_asignaciones,
         })
 

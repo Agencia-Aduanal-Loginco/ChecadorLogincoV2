@@ -47,19 +47,52 @@ def obtener_horario_del_dia(empleado, fecha):
             'objeto': horario,
         }
 
-    # 3. Horario predeterminado del empleado
-    if hasattr(empleado, 'horario_predeterminado') and empleado.horario_predeterminado:
-        th = empleado.horario_predeterminado
-        return {
-            'hora_entrada': th.hora_entrada,
-            'hora_salida': th.hora_salida,
-            'tolerancia_minutos': th.tolerancia_minutos,
-            'tiene_comida': th.tiene_comida,
-            'hora_inicio_comida': th.hora_inicio_comida,
-            'hora_fin_comida': th.hora_fin_comida,
-            'nombre': th.nombre,
-            'fuente': 'predeterminado',
-            'objeto': th,
-        }
+    # 3. Horario predeterminado del empleado según día de la semana
+    if dia_semana == 6:  # Sábado
+        if empleado.descansa_sabado:
+            return None
+        if empleado.horario_sabado:
+            th = empleado.horario_sabado
+            return {
+                'hora_entrada': th.hora_entrada,
+                'hora_salida': th.hora_salida,
+                'tolerancia_minutos': th.tolerancia_minutos,
+                'tiene_comida': th.tiene_comida,
+                'hora_inicio_comida': th.hora_inicio_comida,
+                'hora_fin_comida': th.hora_fin_comida,
+                'nombre': th.nombre,
+                'fuente': 'predeterminado_sabado',
+                'objeto': th,
+            }
+    elif dia_semana == 7:  # Domingo
+        if empleado.descansa_domingo:
+            return None
+        if empleado.horario_domingo:
+            th = empleado.horario_domingo
+            return {
+                'hora_entrada': th.hora_entrada,
+                'hora_salida': th.hora_salida,
+                'tolerancia_minutos': th.tolerancia_minutos,
+                'tiene_comida': th.tiene_comida,
+                'hora_inicio_comida': th.hora_inicio_comida,
+                'hora_fin_comida': th.hora_fin_comida,
+                'nombre': th.nombre,
+                'fuente': 'predeterminado_domingo',
+                'objeto': th,
+            }
+    else:  # Lunes a Viernes (1-5)
+        if empleado.horario_predeterminado:
+            th = empleado.horario_predeterminado
+            return {
+                'hora_entrada': th.hora_entrada,
+                'hora_salida': th.hora_salida,
+                'tolerancia_minutos': th.tolerancia_minutos,
+                'tiene_comida': th.tiene_comida,
+                'hora_inicio_comida': th.hora_inicio_comida,
+                'hora_fin_comida': th.hora_fin_comida,
+                'nombre': th.nombre,
+                'fuente': 'predeterminado',
+                'objeto': th,
+            }
 
     return None

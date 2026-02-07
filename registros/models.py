@@ -143,7 +143,7 @@ class RegistroAsistencia(models.Model):
         return f"{self.empleado.codigo_empleado} - {self.fecha}"
 
     def calcular_horas_trabajadas(self):
-        """Calcula las horas trabajadas si hay entrada y salida"""
+        """Calcula las horas trabajadas descontando el tiempo de comida"""
         if self.hora_entrada and self.hora_salida:
             entrada = datetime.combine(self.fecha, self.hora_entrada)
             salida = datetime.combine(self.fecha, self.hora_salida)
@@ -153,6 +153,16 @@ class RegistroAsistencia(models.Model):
                 salida += timedelta(days=1)
 
             diferencia = salida - entrada
+
+            # Descontar tiempo de comida si se registró salida y entrada de comida
+            if self.hora_salida_comida and self.hora_entrada_comida:
+                salida_comida = datetime.combine(self.fecha, self.hora_salida_comida)
+                entrada_comida = datetime.combine(self.fecha, self.hora_entrada_comida)
+                if entrada_comida < salida_comida:
+                    entrada_comida += timedelta(days=1)
+                tiempo_comida = entrada_comida - salida_comida
+                diferencia -= tiempo_comida
+
             self.horas_trabajadas = diferencia.total_seconds() / 3600
             return self.horas_trabajadas
         return 0
