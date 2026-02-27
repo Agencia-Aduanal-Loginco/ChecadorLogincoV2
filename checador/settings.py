@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'permisos',
     'visitas',
     'reportes',
+    'it_tickets',
 ]
 
 MIDDLEWARE = [

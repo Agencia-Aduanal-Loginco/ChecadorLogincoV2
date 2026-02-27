@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario de Equipos IT{% endblock %}
+
+{% block content %}
+<div x-data="inventarioIT()">
+
+    <!-- Encabezado -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">
+                <i class="fas fa-laptop mr-2 text-blue-600"></i>Inventario de Equipos
+            </h1>
+            <p class="text-gray-500 text-sm mt-1">Gestion del inventario de equipo de computo de la empresa</p>
+        </div>
+        <button @click="modalImportar = true"
+                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition">
+            <i class="fas fa-file-csv mr-2"></i>Importar CSV
+        </button>
+    </div>
+
+    <!-- Cards de metricas -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+
+        <div class="bg-white rounded-lg shadow p-5 border-l-4 border-green-400">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Activos</p>
+                    <p class="text-3xl font-bold text-green-600 mt-1">{{ total_activos }}</p>
+                </div>
+                <div class="bg-green-100 rounded-full p-3">
+                    <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-5 border-l-4 border-yellow-400">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Mantenimiento</p>
+                    <p class="text-3xl font-bold text-yellow-600 mt-1">
+                        {{ equipos|length }}
+                        {# Mostramos el total del queryset filtrado si hay filtro #}
+                    </p>
+                </div>
+                <div class="bg-yellow-100 rounded-full p-3">
+                    <i class="fas fa-tools text-yellow-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-5 border-l-4 border-red-400">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Mant. Vencidos</p>
+                    <p class="text-3xl font-bold text-red-600 mt-1">{{ total_mantenimiento_vencido }}</p>
+                </div>
+                <div class="bg-red-100 rounded-full p-3">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-5 border-l-4 border-gray-400">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</p>
+                    <p class="text-3xl font-bold text-gray-700 mt-1">{{ equipos|length }}</p>
+                </div>
+                <div class="bg-gray-100 rounded-full p-3">
+                    <i class="fas fa-desktop text-gray-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <form method="GET" action="{% url 'it_tickets:inventario_it' %}" class="flex flex-wrap gap-3 items-end">
+            <div class="min-w-44">
+                <label for="estado_filtro" class="block text-xs font-medium text-gray-500 mb-1">Estado del equipo</label>
+                <select name="estado" id="estado_filtro"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="">Todos los estados</option>
+                    {% for valor, etiqueta in estados %}
+                    <option value="{{ valor }}" {% if filtro_estado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition">
+                    <i class="fas fa-filter mr-1"></i>Filtrar
+                </button>
+                {% if filtro_estado %}
+                <a href="{% url 'it_tickets:inventario_it' %}"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition">
+                    <i class="fas fa-times mr-1"></i>Limpiar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabla de equipos -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        {% if equipos %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario / Descripcion</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marca / Modelo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Numero de Serie</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prox. Mantenimiento</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Extras</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                    {% for equipo in equipos %}
+                    <tr class="hover:bg-gray-50 transition {% if equipo.mantenimiento_vencido %}bg-red-50{% endif %}">
+
+                        <!-- Usuario -->
+                        <td class="px-4 py-3">
+                            <div class="text-sm font-medium text-gray-900">{{ equipo.usuario_nombre }}</div>
+                            {% if equipo.empleado %}
+                            <div class="text-xs text-gray-400">
+                                <i class="fas fa-user mr-1"></i>{{ equipo.empleado.user.get_full_name|default:equipo.empleado.user.username }}
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Tipo con icono -->
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center gap-1.5 text-sm text-gray-600">
+                                {% if equipo.tipo == 'laptop' %}
+                                    <i class="fas fa-laptop text-blue-400"></i>Laptop
+                                {% elif equipo.tipo == 'desktop' %}
+                                    <i class="fas fa-desktop text-indigo-400"></i>Desktop
+                                {% elif equipo.tipo == 'servidor' %}
+                                    <i class="fas fa-server text-gray-500"></i>Servidor
+                                {% elif equipo.tipo == 'impresora' %}
+                                    <i class="fas fa-print text-green-400"></i>Impresora
+                                {% elif equipo.tipo == 'tablet' %}
+                                    <i class="fas fa-tablet-alt text-purple-400"></i>Tablet
+                                {% else %}
+                                    <i class="fas fa-microchip text-gray-400"></i>Otro
+                                {% endif %}
+                            </span>
+                        </td>
+
+                        <!-- Marca / Modelo -->
+                        <td class="px-4 py-3">
+                            <div class="text-sm font-medium text-gray-900">{{ equipo.marca }}</div>
+                            <div class="text-xs text-gray-500">{{ equipo.modelo }}</div>
+                        </td>
+
+                        <!-- Numero de serie -->
+                        <td class="px-4 py-3">
+                            <code class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{{ equipo.numero_serie }}</code>
+                        </td>
+
+                        <!-- Estado -->
+                        <td class="px-4 py-3">
+                            {% if equipo.estado == 'activo' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>Activo
+                            </span>
+                            {% elif equipo.estado == 'mantenimiento' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                <span class="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1.5"></span>En Mantenimiento
+                            </span>
+                            {% elif equipo.estado == 'baja' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                                <span class="w-1.5 h-1.5 bg-gray-400 rounded-full mr-1.5"></span>De Baja
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Proximo mantenimiento -->
+                        <td class="px-4 py-3">
+                            {% if equipo.fecha_proximo_mantenimiento %}
+                                {% if equipo.mantenimiento_vencido %}
+                                <span class="inline-flex items-center text-xs font-semibold text-red-700">
+                                    <i class="fas fa-circle text-xs mr-1 animate-pulse text-red-500"></i>
+                                    {{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}
+                                    <span class="ml-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">Vencido</span>
+                                </span>
+                                {% elif equipo.requiere_mantenimiento_pronto %}
+                                <span class="inline-flex items-center text-xs font-semibold text-yellow-700">
+                                    <i class="fas fa-clock text-xs mr-1 text-yellow-500"></i>
+                                    {{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}
+                                    <span class="ml-1 bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">Pronto</span>
+                                </span>
+                                {% else %}
+                                <span class="text-xs text-gray-600">{{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-xs text-gray-400 italic">Sin programar</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Extras: monitor, telefono -->
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap gap-1">
+                                {% if equipo.tiene_monitor %}
+                                <span class="inline-flex items-center text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                                    <i class="fas fa-tv mr-1 text-xs"></i>
+                                    {% if equipo.marca_monitor %}{{ equipo.marca_monitor }}{% else %}Monitor{% endif %}
+                                </span>
+                                {% endif %}
+                                {% if equipo.telefono_serie %}
+                                <span class="inline-flex items-center text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                                    <i class="fas fa-phone mr-1 text-xs"></i>Tel
+                                </span>
+                                {% endif %}
+                                {% if equipo.notas %}
+                                <span class="inline-flex items-center text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
+                                      title="{{ equipo.notas }}">
+                                    <i class="fas fa-sticky-note mr-1 text-xs"></i>Nota
+                                </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-16 text-center text-gray-400">
+            <i class="fas fa-laptop text-5xl mb-4"></i>
+            <p class="text-lg font-medium text-gray-600">No se encontraron equipos</p>
+            <p class="text-sm mt-1">
+                {% if filtro_estado %}
+                    No hay equipos con el estado seleccionado
+                {% else %}
+                    Importa el inventario desde un archivo CSV
+                {% endif %}
+            </p>
+            {% if filtro_estado %}
+            <a href="{% url 'it_tickets:inventario_it' %}"
+               class="mt-4 inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition">
+                <i class="fas fa-times mr-2"></i>Ver todos
+            </a>
+            {% else %}
+            <button @click="modalImportar = true"
+                    class="mt-4 inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition">
+                <i class="fas fa-file-csv mr-2"></i>Importar CSV
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- =====================================================================
+         Modal: Importar CSV
+         ===================================================================== -->
+    <div x-show="modalImportar"
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4"
+         @keydown.escape.window="cerrarModalImportar()">
+
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             @click.outside="cerrarModalImportar()">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-file-csv mr-2 text-green-500"></i>Importar Inventario CSV
+                </h3>
+                <button @click="cerrarModalImportar()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Contenido -->
+            <div class="px-6 py-5 space-y-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    El CSV debe tener las columnas: <strong>Codigo Empleado, Usuario, Tipo, Numero Serie, Marca, Modelo, R, U, Monitores, Marca Monitor, TELEFONO, TEF MAC</strong>
+                </div>
+
+                <div>
+                    <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-1">
+                        Archivo CSV <span class="text-red-500">*</span>
+                    </label>
+                    <input type="file" id="csv_file" accept=".csv"
+                           @change="archivoSeleccionado = $event.target.files[0]"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700">
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="actualizar" x-model="actualizarExistentes"
+                           class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                    <label for="actualizar" class="text-sm text-gray-700">
+                        Actualizar registros existentes (mismo numero de serie)
+                    </label>
+                </div>
+
+                <!-- Resultado de importacion -->
+                <div x-show="resultadoCSV" class="bg-gray-50 border border-gray-200 rounded-md p-3 text-sm">
+                    <p class="font-semibold text-gray-700 mb-2">Resultado de importacion:</p>
+                    <ul class="space-y-1 text-gray-600">
+                        <li><i class="fas fa-plus-circle text-green-500 mr-1"></i>Creados: <span x-text="resultadoCSV?.creados"></span></li>
+                        <li><i class="fas fa-edit text-blue-500 mr-1"></i>Actualizados: <span x-text="resultadoCSV?.actualizados"></span></li>
+                        <li><i class="fas fa-minus-circle text-gray-400 mr-1"></i>Omitidos: <span x-text="resultadoCSV?.omitidos"></span></li>
+                    </ul>
+                    <div x-show="resultadoCSV?.errores?.length > 0" class="mt-2">
+                        <p class="text-red-600 font-medium text-xs mb-1">Errores:</p>
+                        <ul class="text-xs text-red-500 space-y-0.5 max-h-24 overflow-y-auto">
+                            <template x-for="err in resultadoCSV?.errores">
+                                <li x-text="err"></li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+
+                <div x-show="errorCSV"
+                     class="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-md">
+                    <i class="fas fa-exclamation-triangle mr-1"></i><span x-text="errorCSV"></span>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+                <button @click="cerrarModalImportar()"
+                        class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded-md text-sm font-medium transition">
+                    {% if resultadoCSV %}Cerrar{% else %}Cancelar{% endif %}
+                </button>
+                <button @click="importarCSV()"
+                        :disabled="!archivoSeleccionado || cargandoCSV"
+                        x-show="!resultadoCSV"
+                        class="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2 rounded-md text-sm font-medium transition inline-flex items-center gap-2">
+                    <svg x-show="cargandoCSV" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span x-text="cargandoCSV ? 'Importando...' : 'Importar'"></span>
+                </button>
+                <a x-show="resultadoCSV" href="{% url 'it_tickets:inventario_it' %}"
+                   class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition">
+                    <i class="fas fa-sync-alt mr-1"></i>Recargar inventario
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function inventarioIT() {
+    return {
+        modalImportar: false,
+        archivoSeleccionado: null,
+        actualizarExistentes: false,
+        cargandoCSV: false,
+        resultadoCSV: null,
+        errorCSV: '',
+
+        cerrarModalImportar() {
+            this.modalImportar = false;
+            this.archivoSeleccionado = null;
+            this.resultadoCSV = null;
+            this.errorCSV = '';
+            document.getElementById('csv_file').value = '';
+        },
+
+        async importarCSV() {
+            if (!this.archivoSeleccionado) return;
+
+            this.cargandoCSV = true;
+            this.errorCSV = '';
+            this.resultadoCSV = null;
+
+            const csrfToken = this.getCookie('csrftoken');
+            const formData = new FormData();
+            formData.append('archivo', this.archivoSeleccionado);
+            formData.append('actualizar_existentes', this.actualizarExistentes ? 'true' : 'false');
+
+            try {
+                const resp = await fetch('/api/it/equipos/importar-csv/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    body: formData,
+                });
+                const data = await resp.json();
+
+                if (resp.ok) {
+                    this.resultadoCSV = data;
+                } else {
+                    this.errorCSV = data.detail || data.archivo?.[0] || 'Error al procesar el CSV.';
+                }
+            } catch (e) {
+                this.errorCSV = 'Error de conexion. Intenta de nuevo.';
+            } finally {
+                this.cargandoCSV = false;
+            }
+        },
+
+        getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        },
+    };
+}
+</script>
+{% endblock %}

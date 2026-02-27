@@ -57,6 +57,30 @@
                             </div>
                         </div>
 
+                        <!-- Dropdown: IT Soporte -->
+                        <div class="relative" x-data="{ dropIT: false }" @mouseenter="dropIT = true" @mouseleave="dropIT = false">
+                            <button class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition inline-flex items-center">
+                                <i class="fas fa-headset mr-1"></i>Soporte IT
+                                <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                            <div x-show="dropIT" x-transition class="absolute left-0 mt-0 w-52 bg-white rounded-md shadow-lg z-50">
+                                <a href="{% url 'it_tickets:lista_tickets_it' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-md">
+                                    <i class="fas fa-ticket-alt mr-2 text-gray-400"></i>Mis Tickets
+                                </a>
+                                <a href="{% url 'it_tickets:dashboard_it' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-chart-bar mr-2 text-gray-400"></i>Dashboard IT
+                                </a>
+                                {% if user.is_staff %}
+                                <a href="{% url 'it_tickets:inventario_it' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-laptop mr-2 text-gray-400"></i>Inventario
+                                </a>
+                                <a href="{% url 'it_tickets:calendario_mantenimiento' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-md">
+                                    <i class="fas fa-calendar-alt mr-2 text-gray-400"></i>Mantenimiento
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         {% if user.is_staff %}
                         <!-- Dropdown: Administracion -->
                         <div class="relative" x-data="{ dropAdmin: false }" @mouseenter="dropAdmin = true" @mouseleave="dropAdmin = false">
@@ -130,6 +154,22 @@
                 <a href="{% url 'marcar_asistencia' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
                     <i class="fas fa-camera mr-2 w-5 text-center"></i>Asistencia
                 </a>
+
+                <div class="text-blue-200 text-xs uppercase font-semibold px-3 pt-3 pb-1">Soporte IT</div>
+                <a href="{% url 'it_tickets:lista_tickets_it' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-ticket-alt mr-2 w-5 text-center"></i>Mis Tickets
+                </a>
+                <a href="{% url 'it_tickets:dashboard_it' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-headset mr-2 w-5 text-center"></i>Dashboard IT
+                </a>
+                {% if user.is_staff %}
+                <a href="{% url 'it_tickets:inventario_it' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-laptop mr-2 w-5 text-center"></i>Inventario
+                </a>
+                <a href="{% url 'it_tickets:calendario_mantenimiento' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-calendar-alt mr-2 w-5 text-center"></i>Mantenimiento
+                </a>
+                {% endif %}
 
                 <div class="text-blue-200 text-xs uppercase font-semibold px-3 pt-3 pb-1">Permisos</div>
                 <a href="{% url 'mis_permisos' %}" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-sm transition">

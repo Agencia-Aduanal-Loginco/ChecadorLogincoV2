@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}{{ ticket.folio }} - Detalle del Ticket{% endblock %}
+
+{% block content %}
+<div x-data="detalleTicket()" x-init="init()">
+
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-gray-500 mb-4">
+        <a href="{% url 'it_tickets:dashboard_it' %}" class="hover:text-blue-600 transition">
+            <i class="fas fa-headset mr-1"></i>Soporte IT
+        </a>
+        <span class="mx-2">/</span>
+        <a href="{% url 'it_tickets:lista_tickets_it' %}" class="hover:text-blue-600 transition">Tickets</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-700 font-medium">{{ ticket.folio }}</span>
+    </nav>
+
+    <!-- Header del ticket -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <span class="font-mono text-sm text-gray-400 bg-gray-100 px-2 py-1 rounded">{{ ticket.folio }}</span>
+                    <!-- Badge estado grande -->
+                    {% if ticket.estado == 'creado' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-700">
+                        <span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>Creado
+                    </span>
+                    {% elif ticket.estado == 'pendiente' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                        <span class="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>Pendiente
+                    </span>
+                    {% elif ticket.estado == 'proceso' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-indigo-100 text-indigo-800">
+                        <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2 animate-pulse"></span>En Proceso
+                    </span>
+                    {% elif ticket.estado == 'espera' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
+                        <span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>En Espera
+                    </span>
+                    {% elif ticket.estado == 'concluido' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                        <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>Concluido
+                    </span>
+                    {% endif %}
+                    <!-- Badge prioridad -->
+                    {% if ticket.prioridad %}
+                        {% include "it_tickets/partials/badge_prioridad.html" with prioridad=ticket.prioridad label=ticket.get_prioridad_display %}
+                    {% endif %}
+                </div>
+                <h1 class="text-xl font-bold text-gray-900">{{ ticket.titulo }}</h1>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <a href="{% url 'it_tickets:lista_tickets_it' %}"
+                   class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Columna principal: info + historial -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Descripcion del problema -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-base font-semibold text-gray-900 mb-3">
+                    <i class="fas fa-align-left mr-2 text-gray-400"></i>Descripcion del Problema
+                </h2>
+                <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{{ ticket.descripcion }}</p>
+            </div>
+
+            <!-- Alerta: motivo de espera -->
+            {% if ticket.estado == 'espera' and ticket.motivo_espera %}
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-pause-circle text-yellow-500 text-lg flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <h3 class="font-semibold text-yellow-800 text-sm mb-1">Ticket en Espera</h3>
+                        <p class="text-yellow-700 text-sm">{{ ticket.motivo_espera }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Panel de solucion (si concluido) -->
+            {% if ticket.estado == 'concluido' and ticket.solucion %}
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-check-circle text-green-500 text-lg flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <h3 class="font-semibold text-green-800 text-sm mb-1">Solucion Aplicada</h3>
+                        <p class="text-green-700 text-sm leading-relaxed whitespace-pre-wrap">{{ ticket.solucion }}</p>
+                        {% if ticket.fecha_resolucion %}
+                        <p class="text-green-600 text-xs mt-2">
+                            <i class="fas fa-clock mr-1"></i>Resuelto el {{ ticket.fecha_resolucion|date:"d/m/Y H:i" }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Timeline de historial -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-base font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-history mr-2 text-gray-400"></i>Historial de Cambios
+                </h2>
+
+                {% if historial %}
+                <div class="relative">
+                    <!-- Linea vertical del timeline -->
+                    <div class="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+                    <div class="space-y-6">
+                        {% for entrada in historial %}
+                        <div class="flex gap-4 relative">
+                            <!-- Icono del nodo -->
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center z-10
+                                {% if entrada.estado_nuevo == 'concluido' %}bg-green-100 border-2 border-green-400
+                                {% elif entrada.estado_nuevo == 'proceso' %}bg-indigo-100 border-2 border-indigo-400
+                                {% elif entrada.estado_nuevo == 'espera' %}bg-yellow-100 border-2 border-yellow-400
+                                {% elif entrada.estado_nuevo == 'pendiente' %}bg-blue-100 border-2 border-blue-400
+                                {% else %}bg-gray-100 border-2 border-gray-300{% endif %}">
+                                {% if entrada.estado_nuevo == 'concluido' %}
+                                    <i class="fas fa-check text-green-600 text-sm"></i>
+                                {% elif entrada.estado_nuevo == 'proceso' %}
+                                    <i class="fas fa-play text-indigo-600 text-sm"></i>
+                                {% elif entrada.estado_nuevo == 'espera' %}
+                                    <i class="fas fa-pause text-yellow-600 text-sm"></i>
+                                {% elif entrada.estado_nuevo == 'pendiente' %}
+                                    <i class="fas fa-clock text-blue-600 text-sm"></i>
+                                {% else %}
+                                    <i class="fas fa-circle text-gray-400 text-sm"></i>
+                                {% endif %}
+                            </div>
+
+                            <!-- Contenido -->
+                            <div class="flex-1 min-w-0">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                                        <span class="text-sm font-medium text-gray-900">
+                                            {{ entrada.usuario.get_full_name|default:entrada.usuario.username }}
+                                        </span>
+                                        <span class="text-xs text-gray-500">cambio el estado de</span>
+                                        {% include "it_tickets/partials/badge_estado.html" with estado=entrada.estado_anterior label=entrada.get_estado_anterior_display %}
+                                        <i class="fas fa-arrow-right text-gray-400 text-xs"></i>
+                                        {% include "it_tickets/partials/badge_estado.html" with estado=entrada.estado_nuevo label=entrada.get_estado_nuevo_display %}
+                                    </div>
+                                    {% if entrada.comentario %}
+                                    <p class="text-sm text-gray-600 mt-2 pl-3 border-l-2 border-gray-300 italic">
+                                        {{ entrada.comentario }}
+                                    </p>
+                                    {% endif %}
+                                    <p class="text-xs text-gray-400 mt-2">
+                                        <i class="fas fa-clock mr-1"></i>{{ entrada.fecha|date:"d/m/Y H:i" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Nodo inicial: creacion del ticket -->
+                        <div class="flex gap-4 relative">
+                            <div class="flex-shrink-0 w-10 h-10 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center z-10">
+                                <i class="fas fa-plus text-gray-400 text-sm"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-sm font-medium text-gray-900">
+                                        {{ ticket.empleado.user.get_full_name|default:ticket.empleado.user.username }}
+                                        creo el ticket
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        <i class="fas fa-clock mr-1"></i>{{ ticket.fecha_creacion|date:"d/m/Y H:i" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-gray-400 py-6">
+                    <i class="fas fa-history text-3xl mb-2"></i>
+                    <p class="text-sm">Sin cambios de estado registrados</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Columna lateral: info del ticket + panel IT -->
+        <div class="space-y-6">
+
+            <!-- Informacion del ticket -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-base font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-info-circle mr-2 text-gray-400"></i>Informacion
+                </h2>
+                <dl class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Categoria</dt>
+                        <dd class="font-medium text-gray-700">
+                            {% if ticket.categoria == 'hardware' %}<i class="fas fa-microchip mr-1 text-gray-400"></i>
+                            {% elif ticket.categoria == 'software' %}<i class="fas fa-code mr-1 text-gray-400"></i>
+                            {% elif ticket.categoria == 'red' %}<i class="fas fa-network-wired mr-1 text-gray-400"></i>
+                            {% else %}<i class="fas fa-question-circle mr-1 text-gray-400"></i>
+                            {% endif %}
+                            {{ ticket.get_categoria_display }}
+                        </dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Reportado por</dt>
+                        <dd class="font-medium text-gray-700">{{ ticket.empleado.user.get_full_name|default:ticket.empleado.user.username }}</dd>
+                    </div>
+                    {% if ticket.equipo %}
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Equipo</dt>
+                        <dd class="font-medium text-gray-700">{{ ticket.equipo.marca }} {{ ticket.equipo.modelo }}</dd>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Creado</dt>
+                        <dd class="font-medium text-gray-700">{{ ticket.fecha_creacion|date:"d/m/Y H:i" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Tiempo abierto</dt>
+                        <dd class="font-medium text-gray-700">{{ ticket.tiempo_resolucion_horas }} h</dd>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <dt class="text-gray-500">Asignado a</dt>
+                        <dd class="font-medium text-gray-700">
+                            {% if ticket.asignado_a %}
+                                {{ ticket.asignado_a.get_full_name|default:ticket.asignado_a.username }}
+                            {% else %}
+                                <span class="text-gray-400 italic">Sin asignar</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- Panel de accion IT (solo si es_it y hay transiciones disponibles) -->
+            {% if es_it %}
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-base font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-tools mr-2 text-blue-500"></i>Panel IT
+                </h2>
+
+                {% if estados_disponibles %}
+                <form @submit.prevent="cambiarEstado()">
+
+                    <!-- Select nuevo estado -->
+                    <div class="mb-4">
+                        <label for="nuevo_estado" class="block text-sm font-medium text-gray-700 mb-1">
+                            Cambiar estado a
+                        </label>
+                        <select id="nuevo_estado" x-model="panelIT.estado"
+                                @change="onEstadoChange()"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">Seleccionar estado...</option>
+                            {% for valor, etiqueta in estados_disponibles %}
+                            <option value="{{ valor }}">{{ etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Campo motivo espera (solo si estado = espera) -->
+                    <div x-show="panelIT.estado === 'espera'" x-cloak class="mb-4">
+                        <label for="motivo_espera" class="block text-sm font-medium text-gray-700 mb-1">
+                            Motivo de espera <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="motivo_espera" x-model="panelIT.motivo_espera"
+                                  rows="3" placeholder="Especifica que se espera: piezas, proveedor, equipo de reemplazo..."
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                    </div>
+
+                    <!-- Campo solucion (solo si estado = concluido) -->
+                    <div x-show="panelIT.estado === 'concluido'" x-cloak class="mb-4">
+                        <label for="solucion" class="block text-sm font-medium text-gray-700 mb-1">
+                            Descripcion de la solucion <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="solucion" x-model="panelIT.solucion"
+                                  rows="4" placeholder="Describe como se resolvio el problema..."
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                    </div>
+
+                    <!-- Comentario general -->
+                    <div class="mb-4">
+                        <label for="comentario" class="block text-sm font-medium text-gray-700 mb-1">
+                            Comentario <span class="text-gray-400 font-normal">(opcional)</span>
+                        </label>
+                        <textarea id="comentario" x-model="panelIT.comentario"
+                                  rows="3" placeholder="Comentario adicional..."
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                    </div>
+
+                    <!-- Asignar prioridad -->
+                    <div class="mb-4">
+                        <label for="prioridad_it" class="block text-sm font-medium text-gray-700 mb-1">
+                            Asignar / cambiar prioridad
+                        </label>
+                        <select id="prioridad_it" x-model="panelIT.prioridad"
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="">Sin cambio</option>
+                            <option value="critica" {% if ticket.prioridad == 'critica' %}selected{% endif %}>Critica</option>
+                            <option value="alta" {% if ticket.prioridad == 'alta' %}selected{% endif %}>Alta</option>
+                            <option value="media" {% if ticket.prioridad == 'media' %}selected{% endif %}>Media</option>
+                            <option value="baja" {% if ticket.prioridad == 'baja' %}selected{% endif %}>Baja</option>
+                        </select>
+                    </div>
+
+                    <!-- Mensajes de estado del panel -->
+                    <div x-show="panelIT.error"
+                         class="mb-3 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-md">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        <span x-text="panelIT.error"></span>
+                    </div>
+                    <div x-show="panelIT.exito"
+                         class="mb-3 bg-green-50 border border-green-200 text-green-700 text-xs px-3 py-2 rounded-md">
+                        <i class="fas fa-check-circle mr-1"></i>Estado actualizado. Recargando...
+                    </div>
+
+                    <button type="submit"
+                            :disabled="panelIT.cargando || !panelIT.estado"
+                            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-md text-sm font-medium transition inline-flex items-center justify-center gap-2">
+                        <svg x-show="panelIT.cargando" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <i x-show="!panelIT.cargando" class="fas fa-exchange-alt"></i>
+                        <span x-text="panelIT.cargando ? 'Actualizando...' : 'Cambiar Estado'"></span>
+                    </button>
+                </form>
+                {% else %}
+                <div class="text-center text-gray-400 py-4">
+                    {% if ticket.estado == 'concluido' %}
+                    <i class="fas fa-check-circle text-3xl text-green-400 mb-2"></i>
+                    <p class="text-sm text-green-700 font-medium">Ticket concluido</p>
+                    <p class="text-xs mt-1">No hay mas transiciones disponibles</p>
+                    {% else %}
+                    <i class="fas fa-lock text-3xl mb-2"></i>
+                    <p class="text-sm">Sin transiciones disponibles</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function detalleTicket() {
+    return {
+        panelIT: {
+            estado: '',
+            comentario: '',
+            motivo_espera: '',
+            solucion: '',
+            prioridad: '{{ ticket.prioridad|default:"" }}',
+            cargando: false,
+            error: '',
+            exito: false,
+        },
+
+        init() {},
+
+        onEstadoChange() {
+            // Limpiar campos condicionales al cambiar estado
+            if (this.panelIT.estado !== 'espera') this.panelIT.motivo_espera = '';
+            if (this.panelIT.estado !== 'concluido') this.panelIT.solucion = '';
+        },
+
+        async cambiarEstado() {
+            const { estado, comentario, motivo_espera, solucion, prioridad } = this.panelIT;
+
+            if (!estado) {
+                this.panelIT.error = 'Selecciona un estado para continuar.';
+                return;
+            }
+            if (estado === 'espera' && !motivo_espera.trim()) {
+                this.panelIT.error = 'El motivo de espera es obligatorio.';
+                return;
+            }
+            if (estado === 'concluido' && !solucion.trim()) {
+                this.panelIT.error = 'Describe la solucion antes de concluir el ticket.';
+                return;
+            }
+
+            this.panelIT.cargando = true;
+            this.panelIT.error = '';
+
+            const csrfToken = this.getCookie('csrftoken');
+            const ticketId = {{ ticket.pk }};
+
+            const payload = {
+                nuevo_estado: estado,
+                comentario: comentario,
+                motivo_espera: motivo_espera,
+                solucion: solucion,
+            };
+
+            try {
+                const resp = await fetch(`/api/it/tickets/${ticketId}/cambiar-estado/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok) {
+                    // Si hay cambio de prioridad, actualizar por PATCH separado
+                    if (prioridad) {
+                        await fetch(`/api/it/tickets/${ticketId}/`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken,
+                            },
+                            body: JSON.stringify({ prioridad: prioridad }),
+                        });
+                    }
+                    this.panelIT.exito = true;
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    const msg = data.error || data.detail || data.nuevo_estado?.[0] || 'Error al cambiar el estado.';
+                    this.panelIT.error = msg;
+                }
+            } catch (e) {
+                this.panelIT.error = 'Error de conexion. Intenta de nuevo.';
+            } finally {
+                this.panelIT.cargando = false;
+            }
+        },
+
+        getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        },
+    };
+}
+</script>
+{% endblock %}

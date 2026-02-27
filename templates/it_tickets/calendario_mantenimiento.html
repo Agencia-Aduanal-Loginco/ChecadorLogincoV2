@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Calendario de Mantenimiento IT{% endblock %}
+
+{% block content %}
+<div x-data="calendarioMant()">
+
+    <!-- Encabezado -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">
+                <i class="fas fa-calendar-alt mr-2 text-blue-600"></i>Calendario de Mantenimiento
+            </h1>
+            <p class="text-gray-500 text-sm mt-1">
+                Hoy: <strong>{{ hoy|date:"d \d\e F \d\e Y" }}</strong>
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'it_tickets:inventario_it' %}"
+               class="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition">
+                <i class="fas fa-laptop mr-2"></i>Ver Inventario
+            </a>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         SECCION 1: Mantenimientos Vencidos (alerta roja)
+         ===================================================================== -->
+    {% if vencidos %}
+    <div class="bg-red-50 border border-red-300 rounded-lg p-5 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-circle text-red-600 text-2xl animate-pulse"></i>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-red-800">
+                    Mantenimientos Vencidos ({{ vencidos|length }} equipo{{ vencidos|length|pluralize }})
+                </h2>
+                <p class="text-red-600 text-sm">Estos equipos tienen mantenimiento pendiente que debio realizarse</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {% for equipo in vencidos %}
+            <div class="bg-white border border-red-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            {% if equipo.tipo == 'laptop' %}
+                            <i class="fas fa-laptop text-gray-400 text-sm"></i>
+                            {% elif equipo.tipo == 'desktop' %}
+                            <i class="fas fa-desktop text-gray-400 text-sm"></i>
+                            {% elif equipo.tipo == 'servidor' %}
+                            <i class="fas fa-server text-gray-400 text-sm"></i>
+                            {% else %}
+                            <i class="fas fa-microchip text-gray-400 text-sm"></i>
+                            {% endif %}
+                            <span class="text-sm font-semibold text-gray-900 truncate">
+                                {{ equipo.marca }} {{ equipo.modelo }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">{{ equipo.usuario_nombre }}</p>
+                        <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{{ equipo.numero_serie }}</code>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-t border-red-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-red-600 font-medium">
+                            <i class="fas fa-calendar-times mr-1"></i>Vencio:
+                        </p>
+                        <p class="text-sm font-bold text-red-700">{{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}</p>
+                    </div>
+                    <span class="inline-flex items-center text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded-full">
+                        <i class="fas fa-circle text-xs mr-1 animate-pulse"></i>Vencido
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- =====================================================================
+         SECCION 2: Proximos 60 dias
+         ===================================================================== -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-gray-900">
+                <i class="fas fa-calendar-check mr-2 text-yellow-500"></i>Proximos 60 Dias
+                {% if proximos %}
+                <span class="ml-2 text-sm font-normal text-gray-500">({{ proximos|length }} equipo{{ proximos|length|pluralize }})</span>
+                {% endif %}
+            </h2>
+        </div>
+
+        {% if proximos %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serie</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Mantenimiento</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dias Restantes</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                    {% for equipo in proximos %}
+                    {% with dias_diff=equipo.fecha_proximo_mantenimiento|timeuntil:hoy %}
+                    <tr class="hover:bg-gray-50 transition {% if equipo.requiere_mantenimiento_pronto %}bg-yellow-50{% endif %}">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                {% if equipo.tipo == 'laptop' %}<i class="fas fa-laptop text-blue-400"></i>
+                                {% elif equipo.tipo == 'desktop' %}<i class="fas fa-desktop text-indigo-400"></i>
+                                {% elif equipo.tipo == 'servidor' %}<i class="fas fa-server text-gray-500"></i>
+                                {% else %}<i class="fas fa-microchip text-gray-400"></i>{% endif %}
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">{{ equipo.marca }} {{ equipo.modelo }}</p>
+                                    <p class="text-xs text-gray-400">{{ equipo.get_tipo_display }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ equipo.usuario_nombre }}</td>
+                        <td class="px-4 py-3">
+                            <code class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{{ equipo.numero_serie }}</code>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if equipo.estado == 'activo' %}
+                            <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Activo</span>
+                            {% elif equipo.estado == 'mantenimiento' %}
+                            <span class="text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">En Mantenimiento</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-medium {% if equipo.requiere_mantenimiento_pronto %}text-yellow-700{% else %}text-gray-700{% endif %}">
+                            {{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if equipo.requiere_mantenimiento_pronto %}
+                            <span class="inline-flex items-center text-xs font-semibold text-yellow-800 bg-yellow-100 px-2.5 py-1 rounded-full">
+                                <i class="fas fa-clock mr-1"></i>Esta semana
+                            </span>
+                            {% else %}
+                            <span class="text-sm text-gray-600">{{ equipo.fecha_proximo_mantenimiento|timeuntil:hoy }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-10 text-center text-gray-400">
+            <i class="fas fa-calendar-check text-4xl mb-3 text-green-400"></i>
+            <p class="font-medium text-gray-600">Sin mantenimientos en los proximos 60 dias</p>
+            <p class="text-sm mt-1">Todos los equipos estan al dia o sin fecha programada</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- =====================================================================
+         SECCION 3: Mantenimientos Realizados (ultimos 30 dias)
+         ===================================================================== -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-base font-semibold text-gray-900">
+                <i class="fas fa-history mr-2 text-green-500"></i>Mantenimientos Realizados (ultimos 30 dias)
+                {% if mantenimientos_recientes %}
+                <span class="ml-2 text-sm font-normal text-gray-500">({{ mantenimientos_recientes|length }} registro{{ mantenimientos_recientes|length|pluralize }})</span>
+                {% endif %}
+            </h2>
+        </div>
+
+        {% if mantenimientos_recientes %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tecnico</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Realizado</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prox. Mantenimiento</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripcion</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                    {% for mant in mantenimientos_recientes %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3">
+                            <p class="text-sm font-medium text-gray-900">
+                                {{ mant.equipo.marca }} {{ mant.equipo.modelo }}
+                            </p>
+                            <p class="text-xs text-gray-400">{{ mant.equipo.usuario_nombre }}</p>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if mant.tipo_mantenimiento == 'preventivo' %}
+                            <span class="inline-flex items-center text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-0.5 rounded-full">
+                                <i class="fas fa-shield-alt mr-1"></i>Preventivo
+                            </span>
+                            {% elif mant.tipo_mantenimiento == 'correctivo' %}
+                            <span class="inline-flex items-center text-xs font-semibold text-orange-700 bg-orange-100 px-2.5 py-0.5 rounded-full">
+                                <i class="fas fa-wrench mr-1"></i>Correctivo
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">
+                            {% if mant.tecnico %}{{ mant.tecnico }}{% else %}
+                            <span class="text-gray-400 italic">Sin especificar</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">
+                            {{ mant.fecha_realizado|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">
+                            {% if mant.fecha_proximo %}
+                                {{ mant.fecha_proximo|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-gray-400 italic">No programado</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 max-w-xs">
+                            {% if mant.descripcion %}
+                            <p class="text-sm text-gray-600 truncate" title="{{ mant.descripcion }}">
+                                {{ mant.descripcion }}
+                            </p>
+                            {% else %}
+                            <span class="text-gray-400 italic text-sm">Sin descripcion</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-10 text-center text-gray-400">
+            <i class="fas fa-tools text-4xl mb-3"></i>
+            <p class="font-medium text-gray-600">Sin mantenimientos registrados en los ultimos 30 dias</p>
+            <p class="text-sm mt-1">Los mantenimientos realizados apareceran aqui</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function calendarioMant() {
+    return {};
+}
+</script>
+{% endblock %}

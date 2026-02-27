@@ -1,0 +1,27 @@
+{% comment %}
+Partial: badge_estado.html
+Variables requeridas:
+  - estado: valor del choice (creado, pendiente, proceso, espera, concluido)
+  - label: texto a mostrar (get_estado_display)
+{% endcomment %}
+{% if estado == 'creado' %}
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+    <span class="w-1.5 h-1.5 bg-gray-400 rounded-full mr-1.5"></span>{{ label }}
+</span>
+{% elif estado == 'pendiente' %}
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+    <span class="w-1.5 h-1.5 bg-blue-400 rounded-full mr-1.5"></span>{{ label }}
+</span>
+{% elif estado == 'proceso' %}
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
+    <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5 animate-pulse"></span>{{ label }}
+</span>
+{% elif estado == 'espera' %}
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+    <span class="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1.5"></span>{{ label }}
+</span>
+{% elif estado == 'concluido' %}
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+    <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>{{ label }}
+</span>
+{% endif %}

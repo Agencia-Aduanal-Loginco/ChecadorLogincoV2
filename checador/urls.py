@@ -97,6 +97,11 @@ urlpatterns = [
     path('api/organizacion/', include('organizacion.urls')),
     path('api/permisos/', include('permisos.urls')),
     path('api/visitas/', include('visitas.urls')),
+
+    # IT Tickets
+    # API REST:   /api/it/equipos/, /api/it/tickets/, /api/it/mantenimientos/
+    # Vistas web: /it/, /it/tickets/, /it/inventario/, /it/mantenimiento/calendario/
+    path('', include('it_tickets.urls', namespace='it_tickets')),
 ]
 
 # Servir archivos media en desarrollo
