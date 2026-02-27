@@ -574,6 +574,26 @@ def lista_tickets_view(request):
 
     qs = qs.order_by('-fecha_creacion')
 
+    # Equipos asignados al empleado para el modal de nuevo ticket
+    equipos_empleado = []
+    try:
+        empleado = request.user.empleado
+        for eq in EquipoComputo.objects.filter(
+            empleado=empleado,
+            estado='activo'
+        ).order_by('tipo'):
+            equipos_empleado.append({
+                'id': eq.id,
+                'tipo': eq.tipo,
+                'marca': eq.marca,
+                'modelo': eq.modelo,
+                'numero_serie': eq.numero_serie,
+                'tiene_telefono': bool(eq.telefono_serie or eq.mac_telefono),
+            })
+    except AttributeError:
+        pass
+
+    import json
     contexto = {
         'tickets': qs,
         'es_it': es_it,
@@ -582,6 +602,7 @@ def lista_tickets_view(request):
         'filtro_prioridad': prioridad,
         'filtro_categoria': categoria,
         'buscar': buscar,
+        'equipos_empleado_json': json.dumps(equipos_empleado),
     }
     return render(request, 'it_tickets/lista_tickets.html', contexto)
 

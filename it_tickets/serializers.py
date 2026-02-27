@@ -123,33 +123,48 @@ class HistorialTicketSerializer(serializers.ModelSerializer):
 class TicketCrearSerializer(serializers.ModelSerializer):
     """
     Serializer para que un empleado cree un ticket.
-    El empleado no puede asignar prioridad ni estado: eso es responsabilidad de IT.
+    El título se genera automáticamente. El empleado elige categoría y subcategoría.
+    La descripción solo es requerida cuando la subcategoría es 'otro'.
     """
+
+    # Campo extra que no está en el modelo; se usa para construir el título
+    subcategoria = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default='',
+        write_only=True,
+        max_length=100,
+    )
 
     class Meta:
         model = Ticket
         fields = [
-            'titulo', 'descripcion', 'categoria', 'equipo',
+            'descripcion', 'categoria', 'equipo', 'subcategoria',
         ]
 
-    def validate_titulo(self, value):
-        if len(value.strip()) < 5:
-            raise serializers.ValidationError(
-                "El título debe tener al menos 5 caracteres."
-            )
-        return value.strip()
-
     def validate_descripcion(self, value):
-        if len(value.strip()) < 10:
+        if value and len(value.strip()) < 5:
             raise serializers.ValidationError(
-                "La descripción debe tener al menos 10 caracteres."
+                "La descripción debe tener al menos 5 caracteres."
             )
-        return value.strip()
+        return value.strip() if value else ''
+
+    def validate(self, data):
+        subcategoria = data.get('subcategoria', '').strip()
+        descripcion = data.get('descripcion', '').strip()
+
+        # Descripción requerida solo cuando subcategoría es 'otro' o categoría es 'otro'
+        categoria = data.get('categoria', '')
+        if (subcategoria == 'otro' or categoria == 'otro') and not descripcion:
+            raise serializers.ValidationError({
+                'descripcion': "Describe el problema cuando seleccionas 'Otro'."
+            })
+        return data
 
     def create(self, validated_data):
         """
-        El empleado se toma del contexto de la petición (request.user.empleado).
-        Si el usuario no tiene empleado asociado, se lanza error de validación.
+        Genera el título automáticamente:
+          "{nombre_empleado} - {categoría} - {subcategoría}"
         """
         request = self.context.get('request')
         try:
@@ -158,6 +173,58 @@ class TicketCrearSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Tu usuario no tiene un perfil de empleado asociado."
             )
+
+        subcategoria = validated_data.pop('subcategoria', '').strip()
+        categoria = validated_data.get('categoria', '')
+
+        # Mapas de etiquetas legibles para el título
+        cat_labels = {
+            'hardware': 'Hardware',
+            'software': 'Software',
+            'red': 'Red / Conectividad',
+            'otro': 'Otro',
+        }
+        sub_labels_software = {
+            'windows': 'Windows',
+            'office': 'Office',
+            'sistemas_casa': 'Sistemas Casa',
+            'otro': 'Otro',
+        }
+        sub_labels_red = {
+            'no_abre_pagina': 'No abre página',
+            'sin_internet_todos': 'Sin internet en todos los equipos',
+            'sin_internet_mi_equipo': 'Sin internet en mi equipo',
+            'no_imprime': 'No puedo imprimir',
+            'otro': 'Otro',
+        }
+        sub_labels_hardware = {
+            'computadora': 'Falla en computadora',
+            'telefono': 'Falla en teléfono',
+            'otro': 'Otro',
+        }
+
+        nombre = empleado.nombre_completo
+        cat_label = cat_labels.get(categoria, categoria.capitalize())
+
+        if categoria == 'hardware':
+            sub_label = sub_labels_hardware.get(subcategoria, subcategoria)
+        elif categoria == 'software':
+            sub_label = sub_labels_software.get(subcategoria, subcategoria)
+        elif categoria == 'red':
+            sub_label = sub_labels_red.get(subcategoria, subcategoria)
+        else:
+            sub_label = subcategoria
+
+        if sub_label:
+            titulo = f"{nombre} - {cat_label}: {sub_label}"
+        else:
+            titulo = f"{nombre} - {cat_label}"
+
+        # Si no hay descripción (hardware sin 'otro'), usar el título como descripción
+        if not validated_data.get('descripcion'):
+            validated_data['descripcion'] = titulo
+
+        validated_data['titulo'] = titulo[:200]
         validated_data['empleado'] = empleado
         return super().create(validated_data)
 

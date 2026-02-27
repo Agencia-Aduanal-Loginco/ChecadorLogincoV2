@@ -195,7 +195,7 @@
     </div>
 
     <!-- =======================================================================
-         Modal: Nuevo Ticket
+         Modal: Nuevo Ticket (formulario dinámico por categoría)
          ======================================================================= -->
     <div x-show="modalNuevo"
          x-cloak
@@ -206,106 +206,218 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4"
-         @keydown.escape.window="cerrarModal()">
+         @keydown.escape.window="cerrarModal()"
+         role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
 
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg"
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col"
              x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 scale-95"
              x-transition:enter-end="opacity-100 scale-100"
              @click.outside="cerrarModal()">
 
-            <!-- Header del modal -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-plus-circle mr-2 text-blue-500"></i>Nuevo Ticket de Soporte
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+                <h3 id="modal-titulo" class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-headset mr-2 text-blue-500"></i>Nuevo Ticket de Soporte
                 </h3>
-                <button @click="cerrarModal()" class="text-gray-400 hover:text-gray-600 transition">
-                    <i class="fas fa-times text-xl"></i>
+                <button @click="cerrarModal()" aria-label="Cerrar modal"
+                        class="text-gray-400 hover:text-gray-600 transition p-1 rounded">
+                    <i class="fas fa-times text-lg"></i>
                 </button>
             </div>
 
-            <!-- Formulario -->
-            <form id="form-nuevo-ticket" @submit.prevent="submitTicket()">
-                <div class="px-6 py-5 space-y-4">
+            <!-- Formulario (scrollable) -->
+            <form id="form-nuevo-ticket" @submit.prevent="submitTicket()" class="flex flex-col flex-1 overflow-hidden">
+                <div class="px-6 py-5 space-y-5 overflow-y-auto flex-1">
 
-                    <!-- Titulo -->
+                    <!-- ── PASO 1: Categoría ── -->
                     <div>
-                        <label for="titulo" class="block text-sm font-medium text-gray-700 mb-1">
-                            Titulo del problema <span class="text-red-500">*</span>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            ¿Qué tipo de problema tienes? <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" id="titulo" name="titulo" x-model="form.titulo" required
-                               maxlength="200"
-                               placeholder="Describe brevemente el problema..."
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                               :class="{ 'border-red-400': errores.titulo }">
-                        <p x-show="errores.titulo" x-text="errores.titulo" class="text-xs text-red-500 mt-1"></p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <template x-for="cat in categorias" :key="cat.valor">
+                                <button type="button"
+                                        @click="seleccionarCategoria(cat.valor)"
+                                        :class="form.categoria === cat.valor
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-500'
+                                            : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50'"
+                                        class="flex items-center gap-2 px-3 py-3 rounded-lg border-2 text-sm font-medium transition text-left">
+                                    <i :class="cat.icono" class="text-base w-5 text-center flex-shrink-0"></i>
+                                    <span x-text="cat.label"></span>
+                                </button>
+                            </template>
+                        </div>
+                        <p x-show="errores.categoria" x-text="errores.categoria"
+                           class="text-xs text-red-500 mt-1" role="alert"></p>
                     </div>
 
-                    <!-- Descripcion -->
-                    <div>
-                        <label for="descripcion" class="block text-sm font-medium text-gray-700 mb-1">
-                            Descripcion detallada <span class="text-red-500">*</span>
+                    <!-- ── PASO 2a: Hardware → selector de equipo ── -->
+                    <div x-show="form.categoria === 'hardware'"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-microchip mr-1 text-gray-400"></i>
+                            ¿Cuál equipo tiene el problema? <span class="text-red-500">*</span>
                         </label>
-                        <textarea id="descripcion" name="descripcion" x-model="form.descripcion" required
-                                  rows="4"
-                                  placeholder="Explica con detalle el problema: que ocurre, cuando ocurre, que intentaste hacer..."
+                        <div class="space-y-2">
+                            <!-- Computadoras del inventario -->
+                            <template x-for="eq in equiposEmpleado" :key="eq.id">
+                                <label :for="'eq-' + eq.id"
+                                       :class="form.subcategoria === 'eq_' + eq.id
+                                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                                            : 'border-gray-200 hover:border-blue-300'"
+                                       class="flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition">
+                                    <input type="radio" :id="'eq-' + eq.id"
+                                           :value="'eq_' + eq.id"
+                                           x-model="form.subcategoria"
+                                           @change="form.equipoId = eq.id"
+                                           class="text-blue-600 focus:ring-blue-500">
+                                    <i :class="eq.tipo === 'laptop' ? 'fas fa-laptop' : 'fas fa-desktop'"
+                                       class="text-gray-400 w-4"></i>
+                                    <span class="text-sm">
+                                        <span class="font-medium" x-text="eq.marca + ' ' + eq.modelo"></span>
+                                        <span class="text-gray-400 text-xs block" x-text="'S/N: ' + eq.numero_serie"></span>
+                                    </span>
+                                </label>
+                            </template>
+                            <!-- Teléfono (si tiene) -->
+                            <template x-if="equiposEmpleado.some(e => e.tiene_telefono)">
+                                <label for="eq-telefono"
+                                       :class="form.subcategoria === 'telefono'
+                                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                                            : 'border-gray-200 hover:border-blue-300'"
+                                       class="flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition">
+                                    <input type="radio" id="eq-telefono"
+                                           value="telefono"
+                                           x-model="form.subcategoria"
+                                           @change="form.equipoId = null"
+                                           class="text-blue-600 focus:ring-blue-500">
+                                    <i class="fas fa-phone text-gray-400 w-4"></i>
+                                    <span class="text-sm font-medium">Mi teléfono IP</span>
+                                </label>
+                            </template>
+                            <!-- Sin equipos en inventario -->
+                            <template x-if="equiposEmpleado.length === 0">
+                                <div class="text-sm text-gray-500 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
+                                    <i class="fas fa-info-circle mr-2 text-blue-400"></i>
+                                    No tienes equipos registrados en el inventario. El área de IT los asignará.
+                                </div>
+                            </template>
+                        </div>
+                        <p x-show="errores.subcategoria" x-text="errores.subcategoria"
+                           class="text-xs text-red-500 mt-1" role="alert"></p>
+                    </div>
+
+                    <!-- ── PASO 2b: Software → tipo de software ── -->
+                    <div x-show="form.categoria === 'software'"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-code mr-1 text-gray-400"></i>
+                            ¿En qué programa o sistema? <span class="text-red-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <template x-for="sub in subcategoriasSoftware" :key="sub.valor">
+                                <label :for="'sw-' + sub.valor"
+                                       :class="form.subcategoria === sub.valor
+                                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                                            : 'border-gray-200 hover:border-blue-300'"
+                                       class="flex items-center gap-2 px-3 py-3 rounded-lg border-2 cursor-pointer transition text-sm">
+                                    <input type="radio" :id="'sw-' + sub.valor"
+                                           :value="sub.valor"
+                                           x-model="form.subcategoria"
+                                           class="text-blue-600 focus:ring-blue-500">
+                                    <i :class="sub.icono" class="text-gray-400 w-4"></i>
+                                    <span x-text="sub.label" class="font-medium"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- ── PASO 2c: Red / Conectividad → tipo de problema ── -->
+                    <div x-show="form.categoria === 'red'"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-network-wired mr-1 text-gray-400"></i>
+                            ¿Cuál es el problema de red? <span class="text-red-500">*</span>
+                        </label>
+                        <div class="space-y-2">
+                            <template x-for="sub in subcategoriasRed" :key="sub.valor">
+                                <label :for="'red-' + sub.valor"
+                                       :class="form.subcategoria === sub.valor
+                                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                                            : 'border-gray-200 hover:border-blue-300'"
+                                       class="flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition text-sm">
+                                    <input type="radio" :id="'red-' + sub.valor"
+                                           :value="sub.valor"
+                                           x-model="form.subcategoria"
+                                           class="text-blue-600 focus:ring-blue-500">
+                                    <i :class="sub.icono" class="text-gray-400 w-4"></i>
+                                    <span x-text="sub.label" class="font-medium"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- ── Descripción adicional (solo cuando subcategoría = 'otro' o categoría = 'otro') ── -->
+                    <div x-show="mostrarDescripcion"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0">
+                        <label for="descripcion" class="block text-sm font-medium text-gray-700 mb-1">
+                            Describe el problema <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="descripcion" x-model="form.descripcion"
+                                  :required="mostrarDescripcion"
+                                  rows="3"
+                                  placeholder="Explica con detalle qué ocurre, cuándo ocurre..."
                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                                   :class="{ 'border-red-400': errores.descripcion }"></textarea>
-                        <p x-show="errores.descripcion" x-text="errores.descripcion" class="text-xs text-red-500 mt-1"></p>
+                        <p x-show="errores.descripcion" x-text="errores.descripcion"
+                           class="text-xs text-red-500 mt-1" role="alert"></p>
                     </div>
 
-                    <!-- Categoria -->
-                    <div>
-                        <label for="categoria" class="block text-sm font-medium text-gray-700 mb-1">
-                            Categoria <span class="text-red-500">*</span>
-                        </label>
-                        <select id="categoria" name="categoria" x-model="form.categoria" required
-                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                :class="{ 'border-red-400': errores.categoria }">
-                            <option value="">Selecciona una categoria...</option>
-                            <option value="hardware">Hardware (equipo fisico)</option>
-                            <option value="software">Software (programas, apps)</option>
-                            <option value="red">Red / Conectividad (internet, red)</option>
-                            <option value="otro">Otro</option>
-                        </select>
-                        <p x-show="errores.categoria" x-text="errores.categoria" class="text-xs text-red-500 mt-1"></p>
+                    <!-- Vista previa del título que se generará -->
+                    <div x-show="tituloPreview"
+                         class="bg-blue-50 border border-blue-200 rounded-md px-4 py-3">
+                        <p class="text-xs text-blue-600 font-medium mb-1">
+                            <i class="fas fa-tag mr-1"></i>El ticket se registrará como:
+                        </p>
+                        <p class="text-sm text-blue-800 font-semibold" x-text="tituloPreview"></p>
                     </div>
 
-                    <!-- Equipo (texto libre, opcional) -->
-                    <div>
-                        <label for="equipo_desc" class="block text-sm font-medium text-gray-700 mb-1">
-                            Equipo relacionado <span class="text-gray-400 font-normal">(opcional)</span>
-                        </label>
-                        <input type="text" id="equipo_desc" name="equipo_desc" x-model="form.equipo_desc"
-                               placeholder="Nombre del equipo, numero de serie o descripcion..."
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                    </div>
-
-                    <!-- Mensaje de error general -->
+                    <!-- Error general -->
                     <div x-show="errorGeneral"
-                         class="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-md">
+                         class="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-md"
+                         role="alert">
                         <i class="fas fa-exclamation-triangle mr-2"></i>
                         <span x-text="errorGeneral"></span>
                     </div>
 
-                    <!-- Mensaje de exito -->
+                    <!-- Éxito -->
                     <div x-show="exito"
-                         class="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-md">
+                         class="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-md"
+                         role="status">
                         <i class="fas fa-check-circle mr-2"></i>
                         Tu ticket fue creado correctamente. Redirigiendo...
                     </div>
 
                 </div>
 
-                <!-- Footer del modal -->
-                <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+                <!-- Footer -->
+                <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3 flex-shrink-0 border-t border-gray-100">
                     <button type="button" @click="cerrarModal()"
                             class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded-md text-sm font-medium transition">
                         Cancelar
                     </button>
                     <button type="submit"
-                            :disabled="cargando"
-                            class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-5 py-2 rounded-md text-sm font-medium transition inline-flex items-center gap-2">
+                            :disabled="cargando || !formularioValido"
+                            class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white px-5 py-2 rounded-md text-sm font-medium transition inline-flex items-center gap-2">
                         <svg x-show="cargando" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
@@ -322,6 +434,10 @@
 
 {% block extra_js %}
 <script>
+// Datos del empleado inyectados desde Django
+const EQUIPOS_EMPLEADO = {{ equipos_empleado_json|safe }};
+const NOMBRE_EMPLEADO = "{{ request.user.get_full_name|default:request.user.username }}";
+
 function listaTickets() {
     return {
         modalNuevo: false,
@@ -329,29 +445,128 @@ function listaTickets() {
         exito: false,
         errorGeneral: '',
         errores: {},
+
+        // Datos de catálogos
+        equiposEmpleado: EQUIPOS_EMPLEADO,
+
+        categorias: [
+            { valor: 'hardware', label: 'Hardware',         icono: 'fas fa-microchip' },
+            { valor: 'software', label: 'Software',         icono: 'fas fa-code' },
+            { valor: 'red',      label: 'Red / Internet',   icono: 'fas fa-network-wired' },
+            { valor: 'otro',     label: 'Otro',             icono: 'fas fa-question-circle' },
+        ],
+
+        subcategoriasSoftware: [
+            { valor: 'windows',       label: 'Windows',        icono: 'fab fa-windows' },
+            { valor: 'office',        label: 'Office',         icono: 'fas fa-file-word' },
+            { valor: 'sistemas_casa', label: 'Sistemas Casa',  icono: 'fas fa-building' },
+            { valor: 'otro',          label: 'Otro',           icono: 'fas fa-ellipsis-h' },
+        ],
+
+        subcategoriasRed: [
+            { valor: 'no_abre_pagina',      label: 'No abre una página específica', icono: 'fas fa-globe' },
+            { valor: 'sin_internet_todos',  label: 'Sin internet en todos los equipos', icono: 'fas fa-wifi' },
+            { valor: 'sin_internet_mi_equipo', label: 'Sin internet en mi equipo',   icono: 'fas fa-desktop' },
+            { valor: 'no_imprime',          label: 'No puedo imprimir',              icono: 'fas fa-print' },
+            { valor: 'otro',                label: 'Otro',                           icono: 'fas fa-ellipsis-h' },
+        ],
+
         form: {
-            titulo: '',
-            descripcion: '',
             categoria: '',
-            equipo_desc: '',
+            subcategoria: '',
+            descripcion: '',
+            equipoId: null,
+        },
+
+        // Computed: mostrar campo de descripción
+        get mostrarDescripcion() {
+            return this.form.categoria === 'otro' ||
+                   this.form.subcategoria === 'otro';
+        },
+
+        // Computed: validez mínima del formulario
+        get formularioValido() {
+            if (!this.form.categoria) return false;
+            if (this.form.categoria === 'hardware') {
+                // Si no hay equipos en inventario, permitir envío sin selección
+                if (this.equiposEmpleado.length === 0) return true;
+                return !!this.form.subcategoria;
+            }
+            if (this.form.categoria === 'software' || this.form.categoria === 'red') {
+                if (!this.form.subcategoria) return false;
+                if (this.form.subcategoria === 'otro') return this.form.descripcion.trim().length >= 5;
+                return true;
+            }
+            if (this.form.categoria === 'otro') {
+                return this.form.descripcion.trim().length >= 5;
+            }
+            return true;
+        },
+
+        // Computed: preview del título a generar
+        get tituloPreview() {
+            if (!this.form.categoria) return '';
+
+            const catLabels = {
+                hardware: 'Hardware', software: 'Software',
+                red: 'Red / Conectividad', otro: 'Otro',
+            };
+            const subLabelsSoftware = {
+                windows: 'Windows', office: 'Office',
+                sistemas_casa: 'Sistemas Casa', otro: 'Otro',
+            };
+            const subLabelsRed = {
+                no_abre_pagina: 'No abre página',
+                sin_internet_todos: 'Sin internet en todos',
+                sin_internet_mi_equipo: 'Sin internet en mi equipo',
+                no_imprime: 'No puedo imprimir',
+                otro: 'Otro',
+            };
+
+            const catLabel = catLabels[this.form.categoria] || this.form.categoria;
+            let subLabel = '';
+
+            if (this.form.categoria === 'hardware' && this.form.subcategoria) {
+                if (this.form.subcategoria === 'telefono') {
+                    subLabel = 'Teléfono IP';
+                } else {
+                    const eq = this.equiposEmpleado.find(e => 'eq_' + e.id === this.form.subcategoria);
+                    subLabel = eq ? eq.marca + ' ' + eq.modelo : '';
+                }
+            } else if (this.form.categoria === 'software') {
+                subLabel = subLabelsSoftware[this.form.subcategoria] || '';
+            } else if (this.form.categoria === 'red') {
+                subLabel = subLabelsRed[this.form.subcategoria] || '';
+            }
+
+            return subLabel
+                ? `${NOMBRE_EMPLEADO} - ${catLabel}: ${subLabel}`
+                : `${NOMBRE_EMPLEADO} - ${catLabel}`;
         },
 
         init() {
-            // Abrir modal si viene ?nuevo=1 en la URL
             const params = new URLSearchParams(window.location.search);
-            if (params.get('nuevo') === '1') {
-                this.modalNuevo = true;
+            if (params.get('nuevo') === '1') this.modalNuevo = true;
+        },
+
+        seleccionarCategoria(valor) {
+            if (this.form.categoria !== valor) {
+                this.form.subcategoria = '';
+                this.form.descripcion = '';
+                this.form.equipoId = null;
+                this.errores = {};
             }
+            this.form.categoria = valor;
         },
 
         cerrarModal() {
-            if (this.exito) return; // Esperar redireccion
+            if (this.exito) return;
             this.modalNuevo = false;
             this.resetForm();
         },
 
         resetForm() {
-            this.form = { titulo: '', descripcion: '', categoria: '', equipo_desc: '' };
+            this.form = { categoria: '', subcategoria: '', descripcion: '', equipoId: null };
             this.errores = {};
             this.errorGeneral = '';
             this.exito = false;
@@ -362,14 +577,27 @@ function listaTickets() {
             this.errores = {};
             this.errorGeneral = '';
 
-            // Obtener token CSRF del cookie
             const csrfToken = this.getCookie('csrftoken');
 
+            // Resolver subcategoría real para hardware con FK de equipo
+            let subcategoriaEnviar = this.form.subcategoria;
+            let equipoId = null;
+
+            if (this.form.categoria === 'hardware') {
+                if (this.form.subcategoria === 'telefono') {
+                    subcategoriaEnviar = 'telefono';
+                } else if (this.form.subcategoria.startsWith('eq_')) {
+                    equipoId = parseInt(this.form.subcategoria.replace('eq_', ''));
+                    subcategoriaEnviar = 'computadora';
+                }
+            }
+
             const payload = {
-                titulo: this.form.titulo,
-                descripcion: this.form.descripcion,
-                categoria: this.form.categoria,
+                categoria:     this.form.categoria,
+                subcategoria:  subcategoriaEnviar,
+                descripcion:   this.form.descripcion || '',
             };
+            if (equipoId) payload.equipo = equipoId;
 
             try {
                 const resp = await fetch('/api/it/tickets/', {
@@ -385,43 +613,35 @@ function listaTickets() {
 
                 if (resp.ok) {
                     this.exito = true;
-                    // Redirigir al detalle del ticket recien creado
                     setTimeout(() => {
                         window.location.href = '/it/tickets/' + data.id + '/';
                     }, 1200);
                 } else {
-                    // Mapear errores del serializer
                     if (typeof data === 'object') {
-                        if (data.titulo) this.errores.titulo = Array.isArray(data.titulo) ? data.titulo[0] : data.titulo;
-                        if (data.descripcion) this.errores.descripcion = Array.isArray(data.descripcion) ? data.descripcion[0] : data.descripcion;
-                        if (data.categoria) this.errores.categoria = Array.isArray(data.categoria) ? data.categoria[0] : data.categoria;
-                        if (data.detail || data.non_field_errors) {
-                            this.errorGeneral = data.detail || (Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors);
+                        if (data.descripcion)  this.errores.descripcion  = Array.isArray(data.descripcion)  ? data.descripcion[0]  : data.descripcion;
+                        if (data.categoria)    this.errores.categoria    = Array.isArray(data.categoria)    ? data.categoria[0]    : data.categoria;
+                        if (data.subcategoria) this.errores.subcategoria = Array.isArray(data.subcategoria) ? data.subcategoria[0] : data.subcategoria;
+                        if (data.non_field_errors) {
+                            this.errorGeneral = Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors;
+                        } else if (data.detail) {
+                            this.errorGeneral = data.detail;
                         }
                     } else {
-                        this.errorGeneral = 'Ocurrio un error al crear el ticket. Intenta de nuevo.';
+                        this.errorGeneral = 'Ocurrió un error. Intenta de nuevo.';
                     }
                 }
             } catch (e) {
-                this.errorGeneral = 'Error de conexion. Verifica tu red e intenta de nuevo.';
+                this.errorGeneral = 'Error de conexión. Verifica tu red e intenta de nuevo.';
             } finally {
                 this.cargando = false;
             }
         },
 
         getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
+            const match = document.cookie.split(';')
+                .map(c => c.trim())
+                .find(c => c.startsWith(name + '='));
+            return match ? decodeURIComponent(match.split('=')[1]) : null;
         },
     };
 }
