@@ -182,7 +182,7 @@ class TicketAdmin(admin.ModelAdmin):
         ('Fechas', {
             'fields': (
                 'fecha_creacion', 'fecha_actualizacion',
-                'fecha_resolucion', 'tiempo_resolucion_horas'
+                'fecha_resolucion'
             ),
             'classes': ('collapse',),
         }),
