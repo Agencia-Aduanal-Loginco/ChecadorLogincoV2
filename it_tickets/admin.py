@@ -194,7 +194,7 @@ class TicketAdmin(admin.ModelAdmin):
 
     def prioridad_badge(self, obj):
         if not obj.prioridad:
-            return format_html('<span style="color:#aaa;">Sin asignar</span>')
+            return mark_safe('<span style="color:#aaa;">Sin asignar</span>')
         colores = {
             'critica': '#721c24',
             'alta':    '#dc3545',
@@ -202,7 +202,7 @@ class TicketAdmin(admin.ModelAdmin):
             'baja':    '#155724',
         }
         color = colores.get(obj.prioridad, '#6c757d')
-        return format_html(
+        return mark_safe(
             '<span style="background:{};color:#fff;padding:2px 8px;border-radius:4px;">{}</span>',
             color, obj.get_prioridad_display()
         )
