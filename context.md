@@ -30,6 +30,15 @@ ChecadorLogincoV2/
 │       ├── calculos.py        # Calculo de datos de asistencia para reportes
 │       ├── generador_excel.py # Generacion de archivos Excel
 │       └── generador_email.py # Envio de reportes por email via SendGrid
+├── it_tickets/                # Gestion de tickets IT e inventario de equipo de computo
+│   ├── models.py              # EquipoComputo, Ticket, HistorialTicket, MantenimientoEquipo
+│   ├── admin.py               # Admin con acciones masivas (mantenimiento masivo)
+│   ├── views.py               # API REST de tickets e inventario
+│   ├── serializers.py         # Serializers diferenciados por accion
+│   ├── permissions.py         # IsITStaff, IsEmpleadoPropietario
+│   ├── urls.py                # Rutas /api/it/
+│   └── services/
+│       └── notificaciones.py  # Notificaciones por email al crear/cambiar estado tickets
 ├── templates/                 # Templates HTML (Tailwind CSS + FontAwesome)
 │   ├── auth/
 │   ├── empleados/
@@ -39,6 +48,12 @@ ChecadorLogincoV2/
 │   ├── visitas/
 │   ├── organizacion/
 │   ├── reportes/email/
+│   ├── it_tickets/            # Templates de tickets (lista, detalle)
+│   ├── admin/
+│   │   ├── it_tickets/        # programar_mantenimiento.html (accion masiva admin)
+│   │   └── empleados/         # confirmar_envio_credenciales.html (accion masiva admin)
+│   ├── emails/
+│   │   └── credenciales_acceso.html  # Correo HTML de credenciales
 │   ├── facial_recognition.html
 │   ├── facial_recognition_comida.html
 │   ├── register_face.html
@@ -424,6 +439,83 @@ Auditoria de cada envio de reporte.
 | error_detalle | TextField | Para estado error |
 | fecha_envio | DateTimeField(auto_now_add) | |
 
+### App: it_tickets
+
+Gestión de tickets de soporte IT e inventario de equipo de cómputo.
+
+#### EquipoComputo
+Inventario de equipos asignados a empleados.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| empleado | FK(Empleado, SET_NULL) | Empleado asignado |
+| usuario_nombre | CharField(100) | Nombre libre del usuario (cuando no hay empleado) |
+| tipo | CharField(choices) | desktop, laptop, servidor, impresora, otro |
+| numero_serie | CharField(100, unique) | Numero de serie del equipo |
+| marca | CharField(100) | |
+| modelo | CharField(100) | |
+| tiene_monitor | BooleanField | |
+| marca_monitor | CharField(100, blank) | |
+| telefono_serie | CharField(100, blank) | |
+| mac_telefono | CharField(17, blank) | MAC del telefono IP |
+| estado | CharField(choices) | activo, mantenimiento, baja |
+| fecha_ultimo_mantenimiento | DateField(null) | |
+| fecha_proximo_mantenimiento | DateField(null) | |
+| notas | TextField(blank) | |
+
+Properties: `mantenimiento_vencido` (bool), `requiere_mantenimiento_pronto` (bool, ≤30 dias).
+
+#### Ticket
+Ticket de soporte IT con flujo de estados y auditoria.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| folio | CharField(unique) | Generado automaticamente (TK-YYYY-NNNN) |
+| titulo | CharField(200) | Generado automaticamente por el serializer |
+| descripcion | TextField | Detalle del problema |
+| categoria | CharField(choices) | hardware, software, red, otro |
+| prioridad | CharField(choices, null) | critica, alta, media, baja |
+| estado | CharField(choices) | creado, pendiente, proceso, espera, concluido |
+| empleado | FK(Empleado, CASCADE) | Quien reporta |
+| asignado_a | FK(User, SET_NULL) | Técnico IT responsable |
+| equipo | FK(EquipoComputo, SET_NULL) | Equipo relacionado |
+| motivo_espera | TextField(blank) | Requerido cuando estado=espera |
+| solucion | TextField(blank) | Resolución documentada |
+| fecha_resolucion | DateTimeField(null) | Calculada al concluir |
+
+Metodo `cambiar_estado(nuevo_estado, usuario, comentario, motivo_espera)`: valida transiciones permitidas, actualiza estado, crea `HistorialTicket`, dispara señal de notificación.
+
+Metodo `puede_cambiar_a(nuevo_estado)`: retorna bool según maquina de estados (creado→pendiente→proceso↔espera→concluido).
+
+Property `tiempo_resolucion_horas`: horas desde creacion hasta resolucion (o hasta ahora si abierto).
+
+#### HistorialTicket
+Auditoria inmutable de cada cambio de estado.
+
+| Campo | Tipo |
+|---|---|
+| ticket | FK(Ticket, CASCADE) |
+| estado_anterior | CharField |
+| estado_nuevo | CharField |
+| usuario | FK(User, SET_NULL) |
+| comentario | TextField |
+| fecha | DateTimeField(auto_now_add) |
+
+#### MantenimientoEquipo
+Registro individual de cada mantenimiento realizado.
+
+| Campo | Tipo | Descripcion |
+|---|---|---|
+| equipo | FK(EquipoComputo, CASCADE) | |
+| tipo_mantenimiento | CharField(choices) | preventivo, correctivo, limpieza, actualizacion |
+| descripcion | TextField | |
+| fecha_realizado | DateField | |
+| fecha_proximo | DateField(null) | Fecha sugerida del siguiente mantenimiento |
+| tecnico | CharField(100) | Nombre del técnico externo o interno |
+| costo | DecimalField(null) | |
+| observaciones | TextField(blank) | |
+| registrado_por | FK(User, SET_NULL) | Usuario admin que registró |
+
 ---
 
 ## 5. APIs REST
@@ -503,6 +595,27 @@ CRUD de `TipoPermiso`, `SolicitudPermiso`, y acciones de transicion de estado.
 ### Visitas: `/api/visitas/`
 
 CRUD de `MotivoVisita` y `Visita`, incluyendo verificacion de QR.
+
+### IT Tickets: `/api/it/`
+
+Autenticacion: `SessionAuthentication` + `JWTAuthentication`. Permisos: `IsITStaff` (staff IT) o `IsEmpleadoPropietario` (empleado ve solo sus tickets).
+
+| Endpoint | Metodo | Permiso | Descripcion |
+|---|---|---|---|
+| `/api/it/equipos/` | GET/POST | IsITStaff | CRUD inventario de equipos |
+| `/api/it/equipos/{id}/` | GET/PUT/PATCH/DELETE | IsITStaff | Equipo individual |
+| `/api/it/equipos/importar_csv/` | POST | IsITStaff | Importar inventario desde CSV |
+| `/api/it/tickets/` | GET | IsAuthenticated | Listar tickets (IT ve todos, empleado ve los suyos) |
+| `/api/it/tickets/` | POST | IsAuthenticated | Crear ticket (empleado o IT) |
+| `/api/it/tickets/{id}/` | GET | IsITStaff \| IsEmpleadoPropietario | Detalle del ticket |
+| `/api/it/tickets/{id}/` | PUT/PATCH | IsITStaff | Actualizar ticket (prioridad, asignado, solucion, equipo) |
+| `/api/it/tickets/{id}/cambiar_estado/` | POST | IsITStaff | Cambiar estado con validacion de transicion |
+| `/api/it/mantenimientos/` | GET/POST | IsITStaff | Registro de mantenimientos realizados |
+| `/api/it/mantenimientos/{id}/` | GET/PUT/PATCH/DELETE | IsITStaff | Mantenimiento individual |
+
+Serializers diferenciados: `TicketCrearSerializer` (empleado, genera titulo automatico), `TicketListSerializer` (lista paginada), `TicketDetalleSerializer` (detalle con historial), `TicketActualizarITSerializer` (actualizacion IT), `CambioEstadoSerializer` (validacion de transicion).
+
+Nota: `TicketCrearSerializer.descripcion` es `allow_blank=True` porque el titulo se genera automaticamente desde categoria+subcategoria; descripcion solo es requerida cuando subcategoria='otro'.
 
 ---
 
@@ -884,7 +997,45 @@ python manage.py collectstatic
 
 ---
 
-## 19. Informacion de Produccion
+## 19. Acciones Masivas en Django Admin
+
+### EquipoComputoAdmin (`it_tickets/admin.py`)
+
+| Accion | Descripcion |
+|---|---|
+| `marcar_activo` | Cambia estado a 'activo' en bulk via `queryset.update()` |
+| `marcar_baja` | Cambia estado a 'baja' en bulk |
+| `marcar_mantenimiento` | Cambia estado a 'mantenimiento' en bulk |
+| `programar_proximo_mantenimiento` | **Dos pasos**: muestra formulario con datepicker → actualiza `fecha_proximo_mantenimiento` en bulk. Template: `admin/it_tickets/programar_mantenimiento.html`. Validacion: fecha debe ser >= hoy. |
+
+### EmpleadoAdmin (`empleados/admin.py`)
+
+| Accion | Descripcion |
+|---|---|
+| `eliminar_rostros_seleccionados` | Elimina embeddings y fotos faciales de los empleados seleccionados |
+| `enviar_credenciales` | **Dos pasos**: muestra página de confirmación con empleados con/sin email → envía correo HTML con usuario y contraseña via SendGrid. Template confirmacion: `admin/empleados/confirmar_envio_credenciales.html`. Template email: `emails/credenciales_acceso.html`. Empleados sin email registrado son omitidos con advertencia. |
+
+### Patron de accion de dos pasos (Django Admin)
+```python
+@admin.action(description='...')
+def mi_accion(self, request, queryset):
+    if 'aplicar' in request.POST:
+        # Paso 2: procesar
+        ...
+        return  # regresa al changelist
+    # Paso 1: renderizar formulario intermedio
+    return render(request, 'admin/app/template.html', {
+        'queryset_data': queryset,
+        'action_name': 'mi_accion',
+        'opts': self.model._meta,
+        'ACTION_CHECKBOX_NAME': admin.helpers.ACTION_CHECKBOX_NAME,
+    })
+```
+El template debe reenviar los IDs seleccionados como `<input type="hidden" name="{{ ACTION_CHECKBOX_NAME }}" value="{{ obj.pk }}">` y el botón de confirmación con `name="aplicar" value="1"`.
+
+---
+
+## 20. Informacion de Produccion
 
 - **URL en produccion**: `https://checador-loginco-app-zd3ie.ondigitalocean.app`
 - **Plataforma**: DigitalOcean App Platform
