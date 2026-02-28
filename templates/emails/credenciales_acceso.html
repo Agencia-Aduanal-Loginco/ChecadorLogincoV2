@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tus credenciales de acceso — Loginco</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0;">
+        <tr>
+            <td align="center">
+
+                {# Tarjeta principal #}
+                <table width="600" cellpadding="0" cellspacing="0" style="
+                    background:#ffffff;
+                    border-radius:8px;
+                    overflow:hidden;
+                    box-shadow:0 2px 8px rgba(0,0,0,.08);
+                    max-width:600px;
+                    width:100%;
+                ">
+
+                    {# Encabezado #}
+                    <tr>
+                        <td style="
+                            background:#003d6e;
+                            padding:28px 40px;
+                            text-align:center;
+                        ">
+                            <div style="
+                                font-size:22px;
+                                font-weight:700;
+                                color:#ffffff;
+                                letter-spacing:.5px;
+                            ">
+                                LOGINCO
+                            </div>
+                            <div style="
+                                font-size:13px;
+                                color:#a8c8e8;
+                                margin-top:4px;
+                            ">
+                                Sistema de Control de Asistencias
+                            </div>
+                        </td>
+                    </tr>
+
+                    {# Cuerpo #}
+                    <tr>
+                        <td style="padding:36px 40px;">
+
+                            <p style="margin:0 0 16px; font-size:16px; color:#333;">
+                                Hola, <strong>{{ nombre }}</strong>
+                            </p>
+
+                            <p style="margin:0 0 24px; font-size:14px; color:#555; line-height:1.6;">
+                                Te compartimos tus credenciales de acceso al
+                                <strong>Sistema de Control de Asistencias</strong> de Loginco.
+                                Guárdalas en un lugar seguro.
+                            </p>
+
+                            {# Caja de credenciales #}
+                            <table width="100%" cellpadding="0" cellspacing="0" style="
+                                background:#f0f7ff;
+                                border:1px solid #b8d6f5;
+                                border-radius:6px;
+                                margin-bottom:28px;
+                            ">
+                                <tr>
+                                    <td style="padding:20px 28px;">
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="
+                                                    padding:10px 0;
+                                                    border-bottom:1px solid #d0e8ff;
+                                                    font-size:13px;
+                                                    color:#666;
+                                                    width:130px;
+                                                    vertical-align:middle;
+                                                ">
+                                                    👤 Usuario
+                                                </td>
+                                                <td style="
+                                                    padding:10px 0;
+                                                    border-bottom:1px solid #d0e8ff;
+                                                    font-family:monospace;
+                                                    font-size:16px;
+                                                    font-weight:700;
+                                                    color:#003d6e;
+                                                    vertical-align:middle;
+                                                ">
+                                                    {{ username }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="
+                                                    padding:10px 0 0;
+                                                    font-size:13px;
+                                                    color:#666;
+                                                    vertical-align:middle;
+                                                ">
+                                                    🔑 Contraseña
+                                                </td>
+                                                <td style="
+                                                    padding:10px 0 0;
+                                                    font-family:monospace;
+                                                    font-size:16px;
+                                                    font-weight:700;
+                                                    color:#003d6e;
+                                                    vertical-align:middle;
+                                                ">
+                                                    {{ password }}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin:0 0 8px; font-size:13px; color:#888;">
+                                Si tienes algún problema para ingresar, comunícate con el departamento de IT.
+                            </p>
+
+                        </td>
+                    </tr>
+
+                    {# Pie #}
+                    <tr>
+                        <td style="
+                            background:#f8f9fa;
+                            border-top:1px solid #e9ecef;
+                            padding:18px 40px;
+                            text-align:center;
+                            font-size:12px;
+                            color:#aaa;
+                        ">
+                            Este mensaje fue generado automáticamente por el sistema.
+                            Por favor no respondas a este correo.
+                            &copy; Loginco
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

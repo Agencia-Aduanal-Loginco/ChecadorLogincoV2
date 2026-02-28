@@ -1,0 +1,163 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Enviar credenciales por correo | Admin{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+
+    <h1 style="margin-bottom:8px;">
+        📧 Enviar credenciales de acceso
+    </h1>
+    <p style="color:#666; margin-bottom:24px;">
+        Se enviará un correo a cada empleado con su <strong>nombre de usuario</strong>
+        y la <strong>contraseña de acceso</strong>. Revisa la lista antes de confirmar.
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        {% for empleado in empleados_con_email %}
+            <input type="hidden" name="{{ ACTION_CHECKBOX_NAME }}" value="{{ empleado.pk }}">
+        {% endfor %}
+        {% for empleado in empleados_sin_email %}
+            <input type="hidden" name="{{ ACTION_CHECKBOX_NAME }}" value="{{ empleado.pk }}">
+        {% endfor %}
+        <input type="hidden" name="action" value="{{ action_name }}">
+        <input type="hidden" name="select_across" value="0">
+
+        {# Contraseña que se enviará #}
+        <div style="
+            background:#fff8e1;
+            border:1px solid #ffe082;
+            border-radius:6px;
+            padding:14px 20px;
+            margin-bottom:20px;
+            display:inline-flex;
+            align-items:center;
+            gap:12px;
+        ">
+            <span style="font-size:22px;">🔑</span>
+            <div>
+                <div style="font-size:12px; color:#7b6400; font-weight:600; text-transform:uppercase; letter-spacing:.5px;">
+                    Contraseña que se comunicará
+                </div>
+                <div style="font-family:monospace; font-size:18px; font-weight:700; color:#333; letter-spacing:1px;">
+                    {{ password }}
+                </div>
+            </div>
+        </div>
+
+        {# Empleados que RECIBIRÁN el correo #}
+        {% if empleados_con_email %}
+        <div style="margin-bottom:24px;">
+            <h2 style="font-size:15px; color:#155724; margin-bottom:10px;">
+                ✅ Se enviará a {{ empleados_con_email|length }} empleado(s)
+            </h2>
+            <div style="overflow-x:auto;">
+                <table style="
+                    width:100%;
+                    border-collapse:collapse;
+                    font-size:13px;
+                    background:#fff;
+                    border:1px solid #ddd;
+                    border-radius:6px;
+                    overflow:hidden;
+                ">
+                    <thead>
+                        <tr style="background:#f8f9fa; border-bottom:2px solid #dee2e6;">
+                            <th style="padding:10px 14px; text-align:left; color:#555; font-weight:600;">Nombre</th>
+                            <th style="padding:10px 14px; text-align:left; color:#555; font-weight:600;">Usuario</th>
+                            <th style="padding:10px 14px; text-align:left; color:#555; font-weight:600;">Correo destino</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for empleado in empleados_con_email %}
+                        <tr style="border-bottom:1px solid #f0f0f0;">
+                            <td style="padding:9px 14px; font-weight:500;">{{ empleado.nombre_completo }}</td>
+                            <td style="padding:9px 14px; font-family:monospace; color:#555;">{{ empleado.user.username }}</td>
+                            <td style="padding:9px 14px; color:#0062cc;">{{ empleado.user.email }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Empleados SIN correo — solo advertencia, no se envía #}
+        {% if empleados_sin_email %}
+        <div style="margin-bottom:24px;">
+            <h2 style="font-size:15px; color:#856404; margin-bottom:10px;">
+                ⚠️ Sin correo registrado — {{ empleados_sin_email|length }} empleado(s) omitido(s)
+            </h2>
+            <div style="overflow-x:auto;">
+                <table style="
+                    width:100%;
+                    border-collapse:collapse;
+                    font-size:13px;
+                    background:#fffbf0;
+                    border:1px solid #ffe082;
+                    border-radius:6px;
+                    overflow:hidden;
+                ">
+                    <thead>
+                        <tr style="background:#fff8e1; border-bottom:2px solid #ffe082;">
+                            <th style="padding:10px 14px; text-align:left; color:#7b6400; font-weight:600;">Nombre</th>
+                            <th style="padding:10px 14px; text-align:left; color:#7b6400; font-weight:600;">Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for empleado in empleados_sin_email %}
+                        <tr style="border-bottom:1px solid #ffe082;">
+                            <td style="padding:9px 14px; font-weight:500; color:#7b6400;">{{ empleado.nombre_completo }}</td>
+                            <td style="padding:9px 14px; font-family:monospace; color:#7b6400;">{{ empleado.user.username }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Botones #}
+        <div style="display:flex; gap:12px; align-items:center;">
+            {% if empleados_con_email %}
+            <button
+                type="submit"
+                name="aplicar"
+                value="1"
+                style="
+                    background:#28a745;
+                    color:#fff;
+                    border:none;
+                    padding:10px 22px;
+                    border-radius:4px;
+                    font-size:14px;
+                    font-weight:600;
+                    cursor:pointer;
+                "
+                onmouseover="this.style.background='#1e7e34'"
+                onmouseout="this.style.background='#28a745'"
+            >
+                📨 Confirmar y enviar {{ empleados_con_email|length }} correo(s)
+            </button>
+            {% endif %}
+            <a
+                href="{% url 'admin:empleados_empleado_changelist' %}"
+                style="
+                    color:#555;
+                    text-decoration:none;
+                    font-size:14px;
+                    padding:10px 16px;
+                    border:1px solid #ccc;
+                    border-radius:4px;
+                    background:#fff;
+                "
+            >
+                ✖ Cancelar
+            </a>
+        </div>
+    </form>
+
+</div>
+{% endblock %}
