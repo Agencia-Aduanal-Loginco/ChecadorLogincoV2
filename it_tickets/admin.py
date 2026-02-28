@@ -7,7 +7,11 @@ Diseño:
 - HistorialTicketAdmin  -> Solo lectura, acceso de auditoría
 - MantenimientoAdmin    -> Registro de mantenimientos con filtros por equipo
 """
+from datetime import date as date_type
+
 from django.contrib import admin
+from django.contrib import messages
+from django.shortcuts import render
 from django.utils import timezone
 from django.utils.html import format_html, mark_safe
 from .models import (
@@ -71,7 +75,10 @@ class EquipoComputoAdmin(admin.ModelAdmin):
     inlines = [MantenimientoEquipoInline]
     date_hierarchy = 'fecha_proximo_mantenimiento'
     ordering = ['marca', 'modelo']
-    actions = ['marcar_activo', 'marcar_baja', 'marcar_mantenimiento']
+    actions = [
+        'marcar_activo', 'marcar_baja', 'marcar_mantenimiento',
+        'programar_proximo_mantenimiento',
+    ]
 
     fieldsets = (
         ('Identificación', {
@@ -141,6 +148,59 @@ class EquipoComputoAdmin(admin.ModelAdmin):
     def marcar_mantenimiento(self, request, queryset):
         count = queryset.update(estado=EstadoEquipo.MANTENIMIENTO)
         self.message_user(request, f"{count} equipo(s) marcado(s) como En Mantenimiento.")
+
+    @admin.action(description='📅 Programar fecha de próximo mantenimiento (masivo)')
+    def programar_proximo_mantenimiento(self, request, queryset):
+        """
+        Acción masiva de dos pasos:
+        1. Muestra formulario con datepicker y lista de equipos seleccionados.
+        2. Al confirmar, actualiza fecha_proximo_mantenimiento en todos los seleccionados.
+        """
+        if 'aplicar' in request.POST:
+            # --- Paso 2: procesar el formulario ---
+            fecha_str = request.POST.get('fecha_proximo_mantenimiento', '').strip()
+            if not fecha_str:
+                self.message_user(
+                    request,
+                    'Debes seleccionar una fecha antes de confirmar.',
+                    level=messages.ERROR,
+                )
+                return
+
+            try:
+                fecha = date_type.fromisoformat(fecha_str)
+            except ValueError:
+                self.message_user(
+                    request,
+                    f'Fecha inválida: "{fecha_str}". Usa el formato AAAA-MM-DD.',
+                    level=messages.ERROR,
+                )
+                return
+
+            if fecha < timezone.now().date():
+                self.message_user(
+                    request,
+                    'La fecha debe ser hoy o una fecha futura.',
+                    level=messages.ERROR,
+                )
+                return
+
+            count = queryset.update(fecha_proximo_mantenimiento=fecha)
+            self.message_user(
+                request,
+                f'{count} equipo(s) actualizados. Próximo mantenimiento: {fecha.strftime("%d/%m/%Y")}.',
+                level=messages.SUCCESS,
+            )
+            return  # vuelve al changelist normalmente
+
+        # --- Paso 1: mostrar formulario intermedio ---
+        return render(request, 'admin/it_tickets/programar_mantenimiento.html', {
+            'equipos': queryset.order_by('marca', 'modelo'),
+            'action_name': 'programar_proximo_mantenimiento',
+            'opts': self.model._meta,
+            'ACTION_CHECKBOX_NAME': admin.helpers.ACTION_CHECKBOX_NAME,
+            'fecha_minima': timezone.now().date().isoformat(),
+        })
 
 
 # ---------------------------------------------------------------------------

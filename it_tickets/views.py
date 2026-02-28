@@ -391,6 +391,14 @@ class TicketViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        except Exception as e:
+            logger.exception(
+                f"Error inesperado al cambiar estado del ticket {ticket.folio}: {e}"
+            )
+            return Response(
+                {'error': 'Ocurrió un error interno. Por favor intenta de nuevo.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
             TicketDetalleSerializer(ticket, context={'request': request}).data

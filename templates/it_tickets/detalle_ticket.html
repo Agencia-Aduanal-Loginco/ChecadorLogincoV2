@@ -418,7 +418,13 @@ function detalleTicket() {
                     body: JSON.stringify(payload),
                 });
 
-                const data = await resp.json();
+                let data;
+                try {
+                    data = await resp.json();
+                } catch (_) {
+                    this.panelIT.error = `Error del servidor (HTTP ${resp.status}). Intenta de nuevo.`;
+                    return;
+                }
 
                 if (resp.ok) {
                     // Si hay cambio de prioridad, actualizar por PATCH separado

@@ -127,6 +127,16 @@ class TicketCrearSerializer(serializers.ModelSerializer):
     La descripción solo es requerida cuando la subcategoría es 'otro'.
     """
 
+    # El modelo define descripcion como TextField() sin blank=True, por lo que DRF
+    # lo genera como required=True, allow_blank=False. Lo sobreescribimos para
+    # permitir que llegue vacío cuando la categoría no es 'otro' (el create()
+    # usa el título como descripción en ese caso).
+    descripcion = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default='',
+    )
+
     # Campo extra que no está en el modelo; se usa para construir el título
     subcategoria = serializers.CharField(
         required=False,
