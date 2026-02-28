@@ -302,7 +302,7 @@ class TicketViewSet(viewsets.ModelViewSet):
         - mis_tickets/metricas: autenticado
         """
         if self.action == 'create':
-            return [IsAuthenticated()]
+            return #[IsAuthenticated()]
         if self.action in ('retrieve',):
             return [IsAuthenticated(), EsPropietarioTicketOIT()]
         if self.action in ('mis_tickets', 'metricas'):

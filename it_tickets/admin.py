@@ -9,7 +9,7 @@ Diseño:
 """
 from django.contrib import admin
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from .models import (
     EquipoComputo, Ticket, HistorialTicket, MantenimientoEquipo,
     EstadoEquipo, EstadoTicket, TipoMantenimiento,
@@ -121,10 +121,10 @@ class EquipoComputoAdmin(admin.ModelAdmin):
 
     def alerta_mantenimiento(self, obj):
         if obj.mantenimiento_vencido:
-            return format_html('<span style="color:red;font-weight:bold;">VENCIDO</span>')
+            return mark_safe('<span style="color:red;font-weight:bold;">VENCIDO</span>')
         if obj.requiere_mantenimiento_pronto:
-            return format_html('<span style="color:orange;">Próximo</span>')
-        return format_html('<span style="color:green;">OK</span>')
+            return mark_safe('<span style="color:orange;">Próximo</span>')
+        return mark_safe('<span style="color:green;">OK</span>')
     alerta_mantenimiento.short_description = 'Mantenimiento'
 
     @admin.action(description='Marcar como Activo')
