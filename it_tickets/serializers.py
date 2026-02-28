@@ -142,7 +142,7 @@ class TicketCrearSerializer(serializers.ModelSerializer):
             'descripcion', 'categoria', 'equipo', 'subcategoria',
         ]
 
-"""     def validate_descripcion(self, value):
+        """def validate_descripcion(self, value):
         if value and len(value.strip()) < 5:
             raise serializers.ValidationError(
                 "La descripción debe tener al menos 5 caracteres."
