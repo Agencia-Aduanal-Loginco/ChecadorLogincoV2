@@ -149,8 +149,9 @@ class TicketCrearSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = [
-            'descripcion', 'categoria', 'equipo', 'subcategoria',
+            'id', 'descripcion', 'categoria', 'equipo', 'subcategoria',
         ]
+        read_only_fields = ['id']
 
     def validate_descripcion(self, value):
         if value and len(value.strip()) < 5:
