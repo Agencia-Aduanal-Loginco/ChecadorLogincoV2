@@ -61,6 +61,14 @@ class TipoMantenimiento(models.TextChoices):
     CORRECTIVO  = 'correctivo',  'Correctivo'
 
 
+class ActividadMantenimiento(models.TextChoices):
+    LIMPIEZA_INTERNA   = 'limpieza_interna',   'Limpieza interna (polvo y componentes)'
+    LIMPIEZA_MEMORIA   = 'limpieza_memoria',   'Limpieza de módulos de memoria'
+    LIMPIEZA_ESTETICA  = 'limpieza_estetica',  'Limpieza estética (carcasa, teclado, monitor)'
+    SOFTWARE           = 'software',           'Mantenimiento de software'
+    OPTIMIZACION_DISCO = 'optimizacion_disco', 'Depuración y optimización de disco duro'
+
+
 # ---------------------------------------------------------------------------
 # Modelo: EquipoComputo
 # ---------------------------------------------------------------------------
@@ -465,6 +473,12 @@ class MantenimientoEquipo(models.Model):
         choices=TipoMantenimiento.choices,
         default=TipoMantenimiento.PREVENTIVO,
         verbose_name='Tipo de Mantenimiento'
+    )
+    actividades_realizadas = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Actividades Realizadas',
+        help_text='Lista de actividades realizadas durante el mantenimiento'
     )
     descripcion = models.TextField(
         verbose_name='Descripción del Mantenimiento'

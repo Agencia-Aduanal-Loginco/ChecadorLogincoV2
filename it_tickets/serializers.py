@@ -16,7 +16,7 @@ from django.contrib.auth.models import User
 from .models import (
     EquipoComputo, Ticket, HistorialTicket, MantenimientoEquipo,
     EstadoTicket, TipoEquipo, EstadoEquipo, CategoriaTicket, PrioridadTicket,
-    TipoMantenimiento,
+    TipoMantenimiento, ActividadMantenimiento,
 )
 
 
@@ -401,12 +401,17 @@ class MantenimientoEquipoSerializer(serializers.ModelSerializer):
         source='get_tipo_mantenimiento_display', read_only=True
     )
     registrado_por_nombre = serializers.SerializerMethodField()
+    actividades_display = serializers.SerializerMethodField()
+
+    # Opciones válidas de actividades (para validación)
+    ACTIVIDADES_VALIDAS = {a.value for a in ActividadMantenimiento}
 
     class Meta:
         model = MantenimientoEquipo
         fields = [
             'id', 'equipo', 'equipo_resumen',
             'tipo_mantenimiento', 'tipo_display',
+            'actividades_realizadas', 'actividades_display',
             'descripcion', 'fecha_realizado', 'fecha_proximo',
             'tecnico', 'costo', 'observaciones',
             'registrado_por', 'registrado_por_nombre',
@@ -418,6 +423,21 @@ class MantenimientoEquipoSerializer(serializers.ModelSerializer):
         if obj.registrado_por:
             return obj.registrado_por.get_full_name() or obj.registrado_por.username
         return None
+
+    def get_actividades_display(self, obj):
+        """Devuelve las etiquetas legibles de las actividades seleccionadas."""
+        labels = {a.value: a.label for a in ActividadMantenimiento}
+        return [labels.get(a, a) for a in (obj.actividades_realizadas or [])]
+
+    def validate_actividades_realizadas(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Debe ser una lista de actividades.")
+        invalidas = [v for v in value if v not in self.ACTIVIDADES_VALIDAS]
+        if invalidas:
+            raise serializers.ValidationError(
+                f"Actividad(es) no válida(s): {', '.join(invalidas)}"
+            )
+        return list(dict.fromkeys(value))  # elimina duplicados preservando orden
 
     def validate(self, data):
         fecha_realizado = data.get('fecha_realizado')

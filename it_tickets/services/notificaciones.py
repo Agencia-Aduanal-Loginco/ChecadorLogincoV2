@@ -68,7 +68,7 @@ def notificar_nuevo_ticket(ticket):
         f"Descripción: {ticket.descripcion}\n"
         f"Equipo:      {ticket.equipo or 'No especificado'}\n\n"
         f"Ingresa al sistema para asignar prioridad y atender el ticket.\n"
-        f"Fecha: {timezone.now().strftime('%d/%m/%Y %H:%M')} (Hora CDMX)"
+        f"Fecha: {timezone.localtime().strftime('%d/%m/%Y %H:%M')} (Hora CDMX)"
     )
 
     try:
@@ -111,7 +111,7 @@ def notificar_ticket_en_espera(ticket):
         f"Motivo espera: {ticket.motivo_espera or 'Ver detalles en el sistema'}\n\n"
         f"Te notificaremos cuando se reanude la atención.\n\n"
         f"Equipo IT - Loginco\n"
-        f"Fecha: {timezone.now().strftime('%d/%m/%Y %H:%M')} (Hora CDMX)"
+        f"Fecha: {timezone.localtime().strftime('%d/%m/%Y %H:%M')} (Hora CDMX)"
     )
 
     try:
@@ -156,7 +156,7 @@ def notificar_ticket_concluido(ticket):
         f"{ticket.asignado_a.get_full_name() or ticket.asignado_a.username if ticket.asignado_a else 'Equipo IT'}\n\n"
         f"Si el problema persiste, por favor abre un nuevo ticket.\n\n"
         f"Equipo IT - Loginco\n"
-        f"Fecha: {timezone.now().strftime('%d/%m/%Y %H:%M')} (Hora CDMX)"
+        f"Fecha: {timezone.localtime().strftime('%d/%m/%Y %H:%M')} (Hora CDMX)"
     )
 
     try:

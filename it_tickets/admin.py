@@ -9,6 +9,7 @@ Diseño:
 """
 from datetime import date as date_type
 
+from django import forms
 from django.contrib import admin
 from django.contrib import messages
 from django.shortcuts import render
@@ -16,8 +17,29 @@ from django.utils import timezone
 from django.utils.html import format_html, mark_safe
 from .models import (
     EquipoComputo, Ticket, HistorialTicket, MantenimientoEquipo,
-    EstadoEquipo, EstadoTicket, TipoMantenimiento,
+    EstadoEquipo, EstadoTicket, TipoMantenimiento, ActividadMantenimiento,
 )
+
+
+# ---------------------------------------------------------------------------
+# Formulario personalizado: MantenimientoEquipo (checkboxes de actividades)
+# ---------------------------------------------------------------------------
+
+class MantenimientoEquipoForm(forms.ModelForm):
+    actividades_realizadas = forms.MultipleChoiceField(
+        choices=ActividadMantenimiento.choices,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label='Actividades Realizadas',
+    )
+
+    class Meta:
+        model = MantenimientoEquipo
+        fields = '__all__'
+
+    def clean_actividades_realizadas(self):
+        """Convierte la lista de opciones seleccionadas al formato JSONField (list)."""
+        return list(self.cleaned_data.get('actividades_realizadas', []))
 
 
 # ---------------------------------------------------------------------------
@@ -44,10 +66,11 @@ class HistorialTicketInline(admin.TabularInline):
 
 class MantenimientoEquipoInline(admin.TabularInline):
     model = MantenimientoEquipo
+    form = MantenimientoEquipoForm
     extra = 0
     fields = [
-        'tipo_mantenimiento', 'fecha_realizado', 'fecha_proximo',
-        'tecnico', 'costo'
+        'tipo_mantenimiento', 'actividades_realizadas',
+        'fecha_realizado', 'fecha_proximo', 'tecnico', 'costo',
     ]
     readonly_fields = ['fecha_creacion']
     ordering = ['-fecha_realizado']
@@ -329,9 +352,10 @@ class HistorialTicketAdmin(admin.ModelAdmin):
 
 @admin.register(MantenimientoEquipo)
 class MantenimientoEquipoAdmin(admin.ModelAdmin):
+    form = MantenimientoEquipoForm
     list_display = [
-        'equipo', 'tipo_mantenimiento', 'fecha_realizado',
-        'fecha_proximo', 'tecnico', 'costo', 'registrado_por',
+        'equipo', 'tipo_mantenimiento', 'actividades_resumen',
+        'fecha_realizado', 'fecha_proximo', 'tecnico', 'costo', 'registrado_por',
     ]
     list_filter = ['tipo_mantenimiento', 'equipo__marca']
     search_fields = [
@@ -341,6 +365,24 @@ class MantenimientoEquipoAdmin(admin.ModelAdmin):
     readonly_fields = ['fecha_creacion', 'registrado_por']
     list_select_related = ['equipo', 'registrado_por']
     ordering = ['-fecha_realizado']
+
+    def actividades_resumen(self, obj):
+        labels = {a.value: a.label for a in ActividadMantenimiento}
+        actividades = obj.actividades_realizadas or []
+        if not actividades:
+            return mark_safe('<span style="color:#aaa;font-style:italic;">Ninguna</span>')
+        items = ''.join(
+            f'<li style="white-space:nowrap;">{labels.get(a, a)}</li>'
+            for a in actividades
+        )
+        return mark_safe(f'<ul style="margin:0;padding-left:1em;">{items}</ul>')
+    actividades_resumen.short_description = 'Actividades'
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj and obj.actividades_realizadas:
+            form.base_fields['actividades_realizadas'].initial = obj.actividades_realizadas
+        return form
 
     def save_model(self, request, obj, form, change):
         if not obj.pk:
