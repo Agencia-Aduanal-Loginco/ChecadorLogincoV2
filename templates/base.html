@@ -35,9 +35,11 @@
                         <a href="{% url 'dashboard' %}" class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition">
                             <i class="fas fa-home mr-1"></i>Inicio
                         </a>
-                        <a href="{% url 'marcar_asistencia' %}" class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition">
-                            <i class="fas fa-camera mr-1"></i>Asistencia
-                        </a>
+                        {% if user.is_staff %}
+                            <a href="{% url 'marcar_asistencia' %}" class="text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm transition">
+                                <i class="fas fa-camera mr-1"></i>Asistencia
+                            </a>
+                        {% endif %}
 
                         <!-- Dropdown: Permisos -->
                         <div class="relative" x-data="{ dropPermisos: false }" @mouseenter="dropPermisos = true" @mouseleave="dropPermisos = false">
