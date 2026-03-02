@@ -291,6 +291,9 @@ class TicketDetalleSerializer(serializers.ModelSerializer):
 
     empleado_nombre = serializers.SerializerMethodField()
     asignado_a_detalle = UserResumenSerializer(source='asignado_a', read_only=True)
+
+    def get_empleado_nombre(self, obj):
+        return obj.empleado.nombre_completo
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
     prioridad_display = serializers.CharField(source='get_prioridad_display', read_only=True)
     categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
