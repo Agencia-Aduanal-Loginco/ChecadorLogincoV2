@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; }
+        .container { max-width: 680px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { background-color: #7c3aed; color: white; padding: 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 20px; }
+        .header p { margin: 5px 0 0; font-size: 14px; opacity: 0.9; }
+        .content { padding: 20px; }
+        .section { margin-bottom: 20px; }
+        .section h2 { font-size: 16px; color: #4c1d95; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background-color: #f5f3ff; color: #4c1d95; text-align: left; padding: 8px; border-bottom: 2px solid #ddd6fe; }
+        td { padding: 8px; border-bottom: 1px solid #f3f4f6; }
+        .stat-box { display: inline-block; text-align: center; padding: 10px 15px; margin: 5px; background: #f5f3ff; border-radius: 6px; min-width: 90px; }
+        .stat-number { font-size: 24px; font-weight: bold; color: #7c3aed; }
+        .stat-label { font-size: 11px; color: #6b7280; }
+        .badge-critica { background-color: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-alta { background-color: #fefce8; color: #ca8a04; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-concluido { background-color: #f0fdf4; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .grid-2 { display: flex; gap: 16px; }
+        .grid-2 > div { flex: 1; }
+        .footer { background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af; }
+        .no-data { text-align: center; color: #9ca3af; padding: 15px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Reporte de Tickets IT</h1>
+            <p>{{ fecha_inicio }} al {{ fecha_fin }}</p>
+        </div>
+
+        <div class="content">
+            <!-- Estadísticas generales -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div class="stat-box">
+                    <div class="stat-number">{{ total_tickets }}</div>
+                    <div class="stat-label">Total Tickets</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" style="color:#16a34a">{{ tickets_concluidos }}</div>
+                    <div class="stat-label">Concluidos</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" style="color:#dc2626">{{ por_prioridad.critica }}</div>
+                    <div class="stat-label">Prioridad Crítica</div>
+                </div>
+                {% if promedio_horas_resolucion %}
+                <div class="stat-box">
+                    <div class="stat-number" style="font-size:18px">{{ promedio_horas_resolucion }}h</div>
+                    <div class="stat-label">Prom. Resolución</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Por estado y por prioridad -->
+            <div class="section">
+                <h2>Distribución de Tickets</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Estado</th>
+                            <th style="text-align:center">Cantidad</th>
+                            <th>Prioridad</th>
+                            <th style="text-align:center">Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Creado</td>
+                            <td style="text-align:center">{{ por_estado.creado }}</td>
+                            <td><span class="badge-critica">Crítica</span></td>
+                            <td style="text-align:center">{{ por_prioridad.critica }}</td>
+                        </tr>
+                        <tr>
+                            <td>Pendiente</td>
+                            <td style="text-align:center">{{ por_estado.pendiente }}</td>
+                            <td><span class="badge-alta">Alta</span></td>
+                            <td style="text-align:center">{{ por_prioridad.alta }}</td>
+                        </tr>
+                        <tr>
+                            <td>En Proceso</td>
+                            <td style="text-align:center">{{ por_estado.proceso }}</td>
+                            <td>Media</td>
+                            <td style="text-align:center">{{ por_prioridad.media }}</td>
+                        </tr>
+                        <tr>
+                            <td>En Espera</td>
+                            <td style="text-align:center">{{ por_estado.espera }}</td>
+                            <td>Baja</td>
+                            <td style="text-align:center">{{ por_prioridad.baja }}</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge-concluido">Concluido</span></td>
+                            <td style="text-align:center">{{ por_estado.concluido }}</td>
+                            <td>Sin asignar</td>
+                            <td style="text-align:center">{{ por_prioridad.sin_asignar }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Top empleados que reportan más tickets -->
+            {% if top_empleados %}
+            <div class="section">
+                <h2>Top Empleados con Más Tickets</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th style="text-align:center">Tickets</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nombre, cantidad in top_empleados %}
+                        <tr>
+                            <td>{{ nombre }}</td>
+                            <td style="text-align:center">{{ cantidad }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Tickets por técnico -->
+            {% if por_tecnico %}
+            <div class="section">
+                <h2>Tickets por Técnico Asignado</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Técnico</th>
+                            <th style="text-align:center">Tickets Asignados</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tecnico, cantidad in por_tecnico %}
+                        <tr>
+                            <td>{{ tecnico }}</td>
+                            <td style="text-align:center">{{ cantidad }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% if not total_tickets %}
+            <p class="no-data">No se registraron tickets en este período.</p>
+            {% endif %}
+        </div>
+
+        <div class="footer">
+            Reporte generado automáticamente por el sistema de Loginco
+        </div>
+    </div>
+</body>
+</html>

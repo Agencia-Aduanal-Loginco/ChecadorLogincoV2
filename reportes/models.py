@@ -8,6 +8,9 @@ class ConfiguracionReporte(models.Model):
         ('diario', 'Diario'),
         ('semanal', 'Semanal'),
         ('quincenal', 'Quincenal'),
+        ('inventario', 'Inventario de Equipos'),
+        ('tickets_it', 'Tickets IT'),
+        ('permisos', 'Permisos Laborales'),
     ]
 
     DIA_ENVIO_CHOICES = [

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; }
+        .container { max-width: 680px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { background-color: #b45309; color: white; padding: 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 20px; }
+        .header p { margin: 5px 0 0; font-size: 14px; opacity: 0.9; }
+        .content { padding: 20px; }
+        .section { margin-bottom: 20px; }
+        .section h2 { font-size: 16px; color: #78350f; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background-color: #fffbeb; color: #78350f; text-align: left; padding: 8px; border-bottom: 2px solid #fde68a; }
+        td { padding: 8px; border-bottom: 1px solid #f3f4f6; }
+        .stat-box { display: inline-block; text-align: center; padding: 10px 15px; margin: 5px; background: #fffbeb; border-radius: 6px; min-width: 90px; }
+        .stat-number { font-size: 24px; font-weight: bold; color: #b45309; }
+        .stat-label { font-size: 11px; color: #6b7280; }
+        .badge-aprobado { background-color: #f0fdf4; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-pendiente { background-color: #fefce8; color: #ca8a04; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-rechazado { background-color: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .footer { background-color: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #9ca3af; }
+        .no-data { text-align: center; color: #9ca3af; padding: 15px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Reporte de Permisos Laborales</h1>
+            <p>{{ fecha_inicio }} al {{ fecha_fin }}</p>
+        </div>
+
+        <div class="content">
+            <!-- Estadísticas generales -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div class="stat-box">
+                    <div class="stat-number">{{ total_solicitudes }}</div>
+                    <div class="stat-label">Total Solicitudes</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" style="color:#16a34a">{{ por_estado.aprobado }}</div>
+                    <div class="stat-label">Aprobadas</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" style="color:#ca8a04">{{ por_estado.pendiente }}</div>
+                    <div class="stat-label">Pendientes</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ total_dias_aprobados }}</div>
+                    <div class="stat-label">Días Aprobados</div>
+                </div>
+            </div>
+
+            <!-- Por tipo de permiso -->
+            {% if por_tipo %}
+            <div class="section">
+                <h2>Permisos por Tipo</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tipo de Permiso</th>
+                            <th style="text-align:center">Solicitudes</th>
+                            <th style="text-align:center">Días Totales</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tipo, stats in por_tipo %}
+                        <tr>
+                            <td>{{ tipo }}</td>
+                            <td style="text-align:center">{{ stats.solicitudes }}</td>
+                            <td style="text-align:center">{{ stats.dias }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Top empleados con más días -->
+            {% if top_empleados %}
+            <div class="section">
+                <h2>Empleados con Más Días de Permiso Aprobados</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th style="text-align:center">Días Aprobados</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nombre, dias in top_empleados %}
+                        <tr>
+                            <td>{{ nombre }}</td>
+                            <td style="text-align:center">{{ dias }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Solicitudes pendientes de aprobación (snapshot actual) -->
+            {% if pendientes_ahora %}
+            <div class="section">
+                <h2>⏳ Solicitudes Pendientes de Aprobación ({{ pendientes_ahora|length }})</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th>Tipo</th>
+                            <th>Período</th>
+                            <th style="text-align:center">Días</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sol in pendientes_ahora %}
+                        <tr>
+                            <td>{{ sol.empleado.nombre_completo }}</td>
+                            <td>{{ sol.tipo_permiso }}</td>
+                            <td>{{ sol.fecha_inicio }} – {{ sol.fecha_fin }}</td>
+                            <td style="text-align:center">{{ sol.dias_solicitados }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% if not total_solicitudes %}
+            <p class="no-data">No se registraron solicitudes de permiso en este período.</p>
+            {% endif %}
+        </div>
+
+        <div class="footer">
+            Reporte generado automáticamente por el sistema de Loginco
+        </div>
+    </div>
+</body>
+</html>

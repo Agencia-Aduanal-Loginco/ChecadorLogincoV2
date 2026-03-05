@@ -198,6 +198,167 @@ def enviar_reporte_quincenal():
 
 
 @util.close_old_connections
+def enviar_reporte_inventario():
+    """Job semanal para reporte de inventario de equipos"""
+    from reportes.services.calculos_inventario import obtener_datos_inventario
+    from reportes.services.generador_excel import generar_reporte_inventario_excel
+    from reportes.services.generador_email import enviar_reporte
+    from reportes.models import ConfiguracionReporte, LogReporte
+
+    logger.info("Iniciando envio de reporte de inventario")
+
+    try:
+        config = ConfiguracionReporte.objects.filter(tipo='inventario', activo=True).first()
+        if not config:
+            logger.warning("No hay configuracion activa para reporte de inventario")
+            return
+
+        destinatarios = config.destinatarios.filter(activo=True)
+        if not destinatarios.exists():
+            logger.warning("No hay destinatarios activos para reporte de inventario")
+            return
+
+        hoy = timezone.now().date()
+        datos = obtener_datos_inventario()
+        # Añadimos fecha_inicio y fecha_fin para el asunto del email
+        datos['fecha_inicio'] = hoy
+        datos['fecha_fin'] = hoy
+
+        archivo_excel = generar_reporte_inventario_excel(datos)
+        num_enviados = enviar_reporte('inventario', datos, destinatarios, archivo_excel=archivo_excel)
+
+        LogReporte.objects.create(
+            tipo_reporte='inventario',
+            fecha_inicio_rango=hoy,
+            fecha_fin_rango=hoy,
+            destinatarios_enviados=num_enviados,
+            estado='enviado'
+        )
+        logger.info(f"Reporte de inventario enviado exitosamente a {num_enviados} destinatarios")
+
+    except Exception as e:
+        logger.error(f"Error al enviar reporte de inventario: {e}")
+        hoy = timezone.now().date()
+        LogReporte.objects.create(
+            tipo_reporte='inventario',
+            fecha_inicio_rango=hoy,
+            fecha_fin_rango=hoy,
+            destinatarios_enviados=0,
+            estado='error',
+            error_detalle=str(e)
+        )
+
+
+@util.close_old_connections
+def enviar_reporte_tickets_it():
+    """Job semanal para reporte de tickets IT"""
+    from datetime import timedelta
+    from reportes.services.calculos_tickets import obtener_datos_tickets
+    from reportes.services.generador_excel import generar_reporte_tickets_excel
+    from reportes.services.generador_email import enviar_reporte
+    from reportes.models import ConfiguracionReporte, LogReporte
+
+    logger.info("Iniciando envio de reporte de tickets IT")
+
+    try:
+        config = ConfiguracionReporte.objects.filter(tipo='tickets_it', activo=True).first()
+        if not config:
+            logger.warning("No hay configuracion activa para reporte de tickets IT")
+            return
+
+        destinatarios = config.destinatarios.filter(activo=True)
+        if not destinatarios.exists():
+            logger.warning("No hay destinatarios activos para reporte de tickets IT")
+            return
+
+        hoy = timezone.now().date()
+        fecha_inicio = hoy - timedelta(days=hoy.weekday())
+        datos = obtener_datos_tickets(fecha_inicio, hoy)
+
+        archivo_excel = generar_reporte_tickets_excel(datos)
+        num_enviados = enviar_reporte('tickets_it', datos, destinatarios, archivo_excel=archivo_excel)
+
+        LogReporte.objects.create(
+            tipo_reporte='tickets_it',
+            fecha_inicio_rango=fecha_inicio,
+            fecha_fin_rango=hoy,
+            destinatarios_enviados=num_enviados,
+            estado='enviado'
+        )
+        logger.info(f"Reporte de tickets IT enviado exitosamente a {num_enviados} destinatarios")
+
+    except Exception as e:
+        logger.error(f"Error al enviar reporte de tickets IT: {e}")
+        hoy = timezone.now().date()
+        LogReporte.objects.create(
+            tipo_reporte='tickets_it',
+            fecha_inicio_rango=hoy,
+            fecha_fin_rango=hoy,
+            destinatarios_enviados=0,
+            estado='error',
+            error_detalle=str(e)
+        )
+
+
+@util.close_old_connections
+def enviar_reporte_permisos():
+    """Job quincenal para reporte de permisos laborales"""
+    import calendar
+    from reportes.services.calculos_permisos import obtener_datos_permisos
+    from reportes.services.generador_excel import generar_reporte_permisos_excel
+    from reportes.services.generador_email import enviar_reporte
+    from reportes.models import ConfiguracionReporte, LogReporte
+
+    logger.info("Iniciando envio de reporte de permisos")
+
+    try:
+        config = ConfiguracionReporte.objects.filter(tipo='permisos', activo=True).first()
+        if not config:
+            logger.warning("No hay configuracion activa para reporte de permisos")
+            return
+
+        destinatarios = config.destinatarios.filter(activo=True)
+        if not destinatarios.exists():
+            logger.warning("No hay destinatarios activos para reporte de permisos")
+            return
+
+        hoy = timezone.now().date()
+        if hoy.day <= 14:
+            fecha_inicio = hoy.replace(day=1)
+            fecha_fin = hoy.replace(day=14)
+        else:
+            fecha_inicio = hoy.replace(day=15)
+            ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+            fecha_fin = hoy.replace(day=ultimo_dia)
+
+        datos = obtener_datos_permisos(fecha_inicio, fecha_fin)
+
+        archivo_excel = generar_reporte_permisos_excel(datos)
+        num_enviados = enviar_reporte('permisos', datos, destinatarios, archivo_excel=archivo_excel)
+
+        LogReporte.objects.create(
+            tipo_reporte='permisos',
+            fecha_inicio_rango=fecha_inicio,
+            fecha_fin_rango=fecha_fin,
+            destinatarios_enviados=num_enviados,
+            estado='enviado'
+        )
+        logger.info(f"Reporte de permisos enviado exitosamente a {num_enviados} destinatarios")
+
+    except Exception as e:
+        logger.error(f"Error al enviar reporte de permisos: {e}")
+        hoy = timezone.now().date()
+        LogReporte.objects.create(
+            tipo_reporte='permisos',
+            fecha_inicio_rango=hoy,
+            fecha_fin_rango=hoy,
+            destinatarios_enviados=0,
+            estado='error',
+            error_detalle=str(e)
+        )
+
+
+@util.close_old_connections
 def delete_old_job_executions(max_age=604_800):
     """
     Elimina ejecuciones de jobs antiguas (por defecto 7 dias).
@@ -247,6 +408,39 @@ def start_scheduler():
     )
     logger.info("Job programado: Reporte quincenal (Dias 14 y 29, 11:50am)")
     
+    # Job para reporte de inventario - Viernes a las 12:00pm
+    scheduler.add_job(
+        enviar_reporte_inventario,
+        trigger=CronTrigger(day_of_week="fri", hour=12, minute=0),
+        id="reporte_inventario",
+        max_instances=1,
+        replace_existing=True,
+        name="Envio de reporte de inventario"
+    )
+    logger.info("Job programado: Reporte inventario (Viernes 12:00pm)")
+
+    # Job para reporte de tickets IT - Viernes a las 12:05pm
+    scheduler.add_job(
+        enviar_reporte_tickets_it,
+        trigger=CronTrigger(day_of_week="fri", hour=12, minute=5),
+        id="reporte_tickets_it",
+        max_instances=1,
+        replace_existing=True,
+        name="Envio de reporte de tickets IT"
+    )
+    logger.info("Job programado: Reporte tickets IT (Viernes 12:05pm)")
+
+    # Job para reporte de permisos - Dias 14 y 29 a las 12:10pm
+    scheduler.add_job(
+        enviar_reporte_permisos,
+        trigger=CronTrigger(day="14,29", hour=12, minute=10),
+        id="reporte_permisos",
+        max_instances=1,
+        replace_existing=True,
+        name="Envio de reporte de permisos"
+    )
+    logger.info("Job programado: Reporte permisos (Dias 14 y 29, 12:10pm)")
+
     # Job para limpiar ejecuciones antiguas - Todos los dias a las 00:00am
     scheduler.add_job(
         delete_old_job_executions,
