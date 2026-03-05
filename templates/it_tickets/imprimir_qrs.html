@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprimir QRs Equipos IT</title>
+    <style>
+        /* ========= PANTALLA ========= */
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+        }
+        .no-print {
+            max-width: 700px;
+            margin: 0 auto 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .no-print h1 { margin: 0; font-size: 18px; color: #1e3a5f; }
+        .no-print p  { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
+        .btn-imprimir {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-imprimir:hover { background: #1d4ed8; }
+        .btn-volver {
+            background: #e5e7eb;
+            color: #374151;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-volver:hover { background: #d1d5db; }
+
+        /* ========= ETIQUETAS ========= */
+        .pagina-etiquetas {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: white;
+            padding: 10mm;
+            box-sizing: border-box;
+        }
+        .grilla-etiquetas {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8mm;
+        }
+        .etiqueta {
+            width: 88mm;
+            height: 58mm;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 4mm;
+            display: flex;
+            align-items: center;
+            gap: 4mm;
+            box-sizing: border-box;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+        .etiqueta-qr {
+            flex-shrink: 0;
+            width: 40mm;
+            height: 40mm;
+        }
+        .etiqueta-qr img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .etiqueta-info {
+            flex: 1;
+            min-width: 0;
+            font-size: 7.5pt;
+            line-height: 1.4;
+        }
+        .etiqueta-usuario {
+            font-weight: bold;
+            font-size: 8.5pt;
+            color: #111827;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .etiqueta-equipo {
+            font-size: 8pt;
+            color: #374151;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .etiqueta-serie {
+            font-family: monospace;
+            font-size: 7pt;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 1px 3px;
+            border-radius: 2px;
+            display: inline-block;
+            margin-top: 2px;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .etiqueta-tipo {
+            font-size: 7pt;
+            color: #9ca3af;
+            margin-top: 3px;
+        }
+        .etiqueta-estado {
+            display: inline-block;
+            font-size: 6.5pt;
+            font-weight: bold;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-top: 4px;
+        }
+        .estado-activo     { background: #dcfce7; color: #166534; }
+        .estado-mantenimiento { background: #fef9c3; color: #854d0e; }
+        .estado-baja       { background: #f3f4f6; color: #6b7280; }
+        .etiqueta-logo {
+            font-size: 6pt;
+            color: #d1d5db;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ========= IMPRESION ========= */
+        @media print {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            .no-print { display: none !important; }
+            .pagina-etiquetas {
+                padding: 0;
+                max-width: 100%;
+                box-shadow: none;
+            }
+            .grilla-etiquetas {
+                gap: 6mm;
+            }
+            .etiqueta {
+                border: 0.5pt solid #9ca3af;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .etiqueta-serie {
+                background: #f3f4f6 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barra de control (solo pantalla) -->
+    <div class="no-print">
+        <div>
+            <h1>Imprimir QRs de Equipos IT</h1>
+            <p>{{ total }} equipo{{ total|pluralize:"s" }} — 8 etiquetas por página A4 (2 col × 4 filas)</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="{% url 'it_tickets:inventario_it' %}" class="btn-volver">← Volver</a>
+            <button class="btn-imprimir" onclick="window.print()">🖨 Imprimir</button>
+        </div>
+    </div>
+
+    <!-- Etiquetas -->
+    <div class="pagina-etiquetas">
+        <div class="grilla-etiquetas">
+            {% for item in equipos_con_qr %}
+            <div class="etiqueta">
+                <div class="etiqueta-qr">
+                    <img src="data:image/png;base64,{{ item.qr_base64 }}" alt="QR {{ item.equipo.numero_serie }}">
+                </div>
+                <div class="etiqueta-info">
+                    <div class="etiqueta-usuario">{{ item.equipo.usuario_nombre|truncatechars:22 }}</div>
+                    <div class="etiqueta-equipo">{{ item.equipo.marca }} {{ item.equipo.modelo|truncatechars:16 }}</div>
+                    <div class="etiqueta-serie">{{ item.equipo.numero_serie }}</div>
+                    <div class="etiqueta-tipo">{{ item.equipo.get_tipo_display }}</div>
+                    <span class="etiqueta-estado estado-{{ item.equipo.estado }}">
+                        {{ item.equipo.get_estado_display }}
+                    </span>
+                    <div class="etiqueta-logo">Loginco IT</div>
+                </div>
+            </div>
+            {% empty %}
+            <div style="grid-column:span 2;text-align:center;padding:40px;color:#9ca3af;">
+                No hay equipos para mostrar.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</body>
+</html>

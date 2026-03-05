@@ -320,3 +320,8 @@ FILE_UPLOAD_HANDLERS = [
 # Directorio específico para archivos temporales de reportes
 REPORTES_TEMP_DIR = 'reportes/temp'
 REPORTES_STORAGE_LOCATION = 'reportes'
+
+# === CONFIGURACIÓN IT ===
+# Costo de referencia por mantenimiento externo (MXN).
+# Usado en reportes para calcular el ahorro por realizar mantenimientos internamente.
+COSTO_MANTENIMIENTO_EXTERNO = float(get_env('COSTO_MANTENIMIENTO_EXTERNO', default='500'))

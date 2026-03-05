@@ -708,3 +708,89 @@ def calendario_mantenimiento_view(request):
         'hoy': hoy,
     }
     return render(request, 'it_tickets/calendario_mantenimiento.html', contexto)
+
+
+# ---------------------------------------------------------------------------
+# Helpers QR
+# ---------------------------------------------------------------------------
+
+def _generar_qr_base64(url):
+    """Genera un QR code como data URI base64 PNG a partir de una URL."""
+    import base64
+    from io import BytesIO
+    import qrcode
+
+    qr = qrcode.QRCode(version=1, box_size=8, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='black', back_color='white')
+    buf = BytesIO()
+    img.save(buf, format='PNG')
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
+# ---------------------------------------------------------------------------
+# Vista pública: detalle de equipo via QR
+# ---------------------------------------------------------------------------
+
+def equipo_detalle_qr_view(request, equipo_id):
+    """
+    Página pública accesible al escanear el QR pegado al equipo.
+    Muestra las características del equipo y los últimos mantenimientos.
+    El botón de registrar mantenimiento solo aparece si el usuario tiene sesión IT.
+    """
+    equipo = get_object_or_404(
+        EquipoComputo.objects.select_related('empleado__user'),
+        pk=equipo_id,
+    )
+
+    url_detalle = request.build_absolute_uri()
+    qr_base64 = _generar_qr_base64(url_detalle)
+
+    ultimos_mantenimientos = MantenimientoEquipo.objects.filter(
+        equipo=equipo
+    ).order_by('-fecha_realizado')[:5]
+
+    user_is_it = request.user.is_authenticated and usuario_es_it(request.user)
+
+    return render(request, 'it_tickets/equipo_detalle_qr.html', {
+        'equipo': equipo,
+        'qr_base64': qr_base64,
+        'ultimos_mantenimientos': ultimos_mantenimientos,
+        'user_is_it': user_is_it,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Vista IT: imprimir todos los QRs en A4
+# ---------------------------------------------------------------------------
+
+@login_required
+def imprimir_qrs_view(request):
+    """
+    Genera una página optimizada para impresión A4 con los QR codes de todos
+    los equipos (excluyendo los dados de baja por defecto).
+    El parámetro ?estado=activo|mantenimiento|baja filtra el listado.
+    """
+    estado_filtro = request.GET.get('estado', '')
+
+    qs = EquipoComputo.objects.select_related('empleado__user').order_by('marca', 'modelo')
+    if estado_filtro:
+        qs = qs.filter(estado=estado_filtro)
+    else:
+        qs = qs.exclude(estado=EstadoEquipo.BAJA)
+
+    equipos_con_qr = []
+    for equipo in qs:
+        url_detalle = request.build_absolute_uri(
+            f'/it/equipos/{equipo.pk}/detalle/'
+        )
+        equipos_con_qr.append({
+            'equipo': equipo,
+            'qr_base64': _generar_qr_base64(url_detalle),
+        })
+
+    return render(request, 'it_tickets/imprimir_qrs.html', {
+        'equipos_con_qr': equipos_con_qr,
+        'total': len(equipos_con_qr),
+    })

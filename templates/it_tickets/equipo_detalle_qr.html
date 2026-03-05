@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ equipo.marca }} {{ equipo.modelo }} — Equipo IT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="equipoQR()">
+
+    <!-- Header -->
+    <div class="bg-blue-600 text-white px-4 py-4 shadow">
+        <div class="max-w-lg mx-auto flex items-center gap-3">
+            {% if equipo.tipo == 'laptop' %}
+                <i class="fas fa-laptop text-2xl"></i>
+            {% elif equipo.tipo == 'desktop' %}
+                <i class="fas fa-desktop text-2xl"></i>
+            {% elif equipo.tipo == 'servidor' %}
+                <i class="fas fa-server text-2xl"></i>
+            {% elif equipo.tipo == 'impresora' %}
+                <i class="fas fa-print text-2xl"></i>
+            {% else %}
+                <i class="fas fa-microchip text-2xl"></i>
+            {% endif %}
+            <div>
+                <h1 class="font-bold text-lg leading-tight">{{ equipo.marca }} {{ equipo.modelo }}</h1>
+                <p class="text-blue-100 text-sm">{{ equipo.usuario_nombre }}</p>
+            </div>
+            <div class="ml-auto">
+                {% if equipo.estado == 'activo' %}
+                    <span class="bg-green-400 text-green-900 text-xs font-semibold px-2 py-1 rounded-full">Activo</span>
+                {% elif equipo.estado == 'mantenimiento' %}
+                    <span class="bg-yellow-400 text-yellow-900 text-xs font-semibold px-2 py-1 rounded-full">Mantenimiento</span>
+                {% else %}
+                    <span class="bg-gray-300 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">Baja</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-lg mx-auto px-4 py-6 space-y-4">
+
+        <!-- QR + Info principal -->
+        <div class="bg-white rounded-xl shadow p-4 flex gap-4 items-start">
+            <img src="data:image/png;base64,{{ qr_base64 }}"
+                 alt="QR Equipo"
+                 class="w-28 h-28 flex-shrink-0 rounded border border-gray-200">
+            <div class="space-y-1.5 text-sm">
+                <div>
+                    <span class="text-gray-500 text-xs uppercase tracking-wide">No. Serie</span>
+                    <p class="font-mono font-semibold text-gray-900">{{ equipo.numero_serie }}</p>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs uppercase tracking-wide">Tipo</span>
+                    <p class="text-gray-800">{{ equipo.get_tipo_display }}</p>
+                </div>
+                {% if equipo.empleado %}
+                <div>
+                    <span class="text-gray-500 text-xs uppercase tracking-wide">Empleado</span>
+                    <p class="text-gray-800">{{ equipo.empleado.nombre_completo }}</p>
+                </div>
+                {% endif %}
+                {% if equipo.tiene_monitor %}
+                <div class="flex items-center gap-1 text-blue-600 text-xs">
+                    <i class="fas fa-tv"></i>
+                    <span>Monitor{% if equipo.marca_monitor %}: {{ equipo.marca_monitor }}{% endif %}</span>
+                </div>
+                {% endif %}
+                {% if equipo.telefono_serie %}
+                <div class="flex items-center gap-1 text-purple-600 text-xs">
+                    <i class="fas fa-phone"></i>
+                    <span>Tel: {{ equipo.telefono_serie }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Estado de mantenimiento -->
+        <div class="bg-white rounded-xl shadow p-4">
+            <h2 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <i class="fas fa-wrench text-yellow-500"></i>Mantenimiento
+            </h2>
+
+            {% if equipo.fecha_proximo_mantenimiento %}
+                {% if equipo.mantenimiento_vencido %}
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <p class="text-red-700 font-semibold text-sm">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Mantenimiento vencido
+                    </p>
+                    <p class="text-red-600 text-xs mt-0.5">Programado para: {{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}</p>
+                </div>
+                {% elif equipo.requiere_mantenimiento_pronto %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                    <p class="text-yellow-700 font-semibold text-sm">
+                        <i class="fas fa-clock mr-1"></i>Mantenimiento próximo
+                    </p>
+                    <p class="text-yellow-600 text-xs mt-0.5">Programado para: {{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}</p>
+                </div>
+                {% else %}
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                    <p class="text-green-700 font-semibold text-sm">
+                        <i class="fas fa-check-circle mr-1"></i>Al corriente
+                    </p>
+                    <p class="text-green-600 text-xs mt-0.5">Próximo: {{ equipo.fecha_proximo_mantenimiento|date:"d/m/Y" }}</p>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                    <p class="text-gray-500 text-sm italic">Sin mantenimiento programado</p>
+                </div>
+            {% endif %}
+
+            <!-- Últimos mantenimientos -->
+            {% if ultimos_mantenimientos %}
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Últimos registros</p>
+            <div class="space-y-2">
+                {% for mant in ultimos_mantenimientos %}
+                <div class="flex items-start justify-between text-sm border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <div>
+                        <span class="font-medium text-gray-800">{{ mant.get_tipo_mantenimiento_display }}</span>
+                        <span class="text-gray-500 text-xs ml-1">— {{ mant.tecnico }}</span>
+                        <p class="text-gray-500 text-xs mt-0.5">{{ mant.descripcion|truncatechars:60 }}</p>
+                    </div>
+                    <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ mant.fecha_realizado|date:"d/m/Y" }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-400 text-sm italic">Sin registros de mantenimiento.</p>
+            {% endif %}
+        </div>
+
+        <!-- Botón registrar mantenimiento (solo IT) -->
+        {% if user_is_it %}
+        <button @click="modalMantenimiento = true"
+                class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-4 rounded-xl shadow flex items-center justify-center gap-2 transition">
+            <i class="fas fa-wrench"></i>Registrar Mantenimiento
+        </button>
+        {% else %}
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center text-sm text-blue-700">
+            <i class="fas fa-lock mr-1"></i>
+            <a href="/login/?next={{ request.path }}" class="underline font-medium">Inicia sesión</a>
+            como personal IT para registrar un mantenimiento.
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- ===================================================================
+         Modal Registrar Mantenimiento (igual que inventario)
+         =================================================================== -->
+    {% if user_is_it %}
+    <div x-show="modalMantenimiento"
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4"
+         @keydown.escape.window="cerrarModal()">
+
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col"
+             @click.outside="cerrarModal()">
+
+            <div class="flex items-center justify-between px-5 py-4 border-b">
+                <h3 class="font-semibold text-gray-900">
+                    <i class="fas fa-wrench mr-2 text-yellow-500"></i>Registrar Mantenimiento
+                </h3>
+                <button @click="cerrarModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="px-5 pt-3 pb-2 flex-shrink-0">
+                <div class="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 text-sm text-blue-800">
+                    <i class="fas fa-desktop mr-2"></i>
+                    <span class="font-medium">{{ equipo.usuario_nombre }} — {{ equipo.marca }} {{ equipo.modelo }}</span>
+                </div>
+            </div>
+
+            <div class="px-5 py-3 space-y-4 overflow-y-auto flex-1">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de mantenimiento <span class="text-red-500">*</span>
+                    </label>
+                    <select x-model="form.tipo_mantenimiento"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="preventivo">Preventivo</option>
+                        <option value="correctivo">Correctivo</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Actividades realizadas</label>
+                    <div class="space-y-2 border border-gray-200 rounded-md p-3 bg-gray-50">
+                        <template x-for="act in actividades" :key="act.value">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" :value="act.value" x-model="form.actividades_realizadas"
+                                       class="mt-0.5 h-4 w-4 text-yellow-600 border-gray-300 rounded">
+                                <span class="text-sm text-gray-700" x-text="act.label"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha realizado <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="date" x-model="form.fecha_realizado"
+                               @change="calcularFechaProximo()"
+                               class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <button type="button" @click="setFechaHoy()"
+                                class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-md text-sm font-medium transition">
+                            Hoy
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha próximo mantenimiento
+                        <span class="text-xs text-gray-400 font-normal">(auto: +60 días)</span>
+                    </label>
+                    <input type="date" x-model="form.fecha_proximo"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Técnico responsable <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" x-model="form.tecnico" placeholder="Nombre del técnico"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Descripción <span class="text-red-500">*</span>
+                    </label>
+                    <textarea x-model="form.descripcion" rows="2"
+                              placeholder="Describe brevemente el mantenimiento realizado..."
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                </div>
+
+                <details class="border border-gray-200 rounded-md">
+                    <summary class="px-3 py-2 text-sm text-gray-500 cursor-pointer select-none">
+                        <i class="fas fa-dollar-sign mr-1"></i>Detalles adicionales (costo)
+                    </summary>
+                    <div class="px-3 py-3 border-t border-gray-200">
+                        <label class="block text-xs text-gray-500 mb-1">
+                            Costo real (MXN) — Solo como referencia para reportes de ahorro
+                        </label>
+                        <input type="number" x-model="form.costo" placeholder="0.00" step="0.01" min="0"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </details>
+
+                <div x-show="errorMsg" class="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-md">
+                    <i class="fas fa-exclamation-triangle mr-1"></i><span x-text="errorMsg"></span>
+                </div>
+                <div x-show="exitoMsg" class="bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-md">
+                    <i class="fas fa-check-circle mr-1"></i>Mantenimiento registrado correctamente.
+                </div>
+            </div>
+
+            <div class="px-5 py-4 bg-gray-50 rounded-b-xl flex justify-end gap-3 border-t">
+                <button @click="cerrarModal()"
+                        class="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded-md text-sm font-medium transition">
+                    Cancelar
+                </button>
+                <button @click="registrar()"
+                        :disabled="cargando || exitoMsg"
+                        class="bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-300 text-white px-4 py-2 rounded-md text-sm font-medium transition inline-flex items-center gap-2">
+                    <svg x-show="cargando" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span x-text="cargando ? 'Guardando...' : 'Registrar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+<script>
+function equipoQR() {
+    return {
+        modalMantenimiento: false,
+        cargando: false,
+        errorMsg: '',
+        exitoMsg: false,
+        form: {
+            tipo_mantenimiento: 'preventivo',
+            actividades_realizadas: [],
+            fecha_realizado: '',
+            fecha_proximo: '',
+            tecnico: '',
+            descripcion: '',
+            costo: '',
+        },
+        actividades: [
+            { value: 'limpieza_interna',   label: 'Limpieza interna (polvo y componentes)' },
+            { value: 'limpieza_memoria',   label: 'Limpieza de módulos de memoria' },
+            { value: 'limpieza_estetica',  label: 'Limpieza estética (carcasa, teclado, monitor)' },
+            { value: 'software',           label: 'Mantenimiento de software' },
+            { value: 'optimizacion_disco', label: 'Depuración y optimización de disco duro' },
+        ],
+
+        setFechaHoy() {
+            const hoy = new Date().toISOString().split('T')[0];
+            this.form.fecha_realizado = hoy;
+            this.calcularFechaProximo();
+        },
+
+        calcularFechaProximo() {
+            if (!this.form.fecha_realizado) return;
+            const d = new Date(this.form.fecha_realizado + 'T00:00:00');
+            d.setDate(d.getDate() + 60);
+            this.form.fecha_proximo = d.toISOString().split('T')[0];
+        },
+
+        cerrarModal() {
+            this.modalMantenimiento = false;
+            this.errorMsg = '';
+            this.exitoMsg = false;
+        },
+
+        async registrar() {
+            this.errorMsg = '';
+            if (!this.form.fecha_realizado) { this.errorMsg = 'La fecha realizado es obligatoria.'; return; }
+            if (!this.form.tecnico.trim())   { this.errorMsg = 'El nombre del técnico es obligatorio.'; return; }
+            if (!this.form.descripcion.trim()) { this.errorMsg = 'La descripción es obligatoria.'; return; }
+
+            this.cargando = true;
+            const payload = {
+                equipo: {{ equipo.id }},
+                tipo_mantenimiento: this.form.tipo_mantenimiento,
+                actividades_realizadas: this.form.actividades_realizadas,
+                fecha_realizado: this.form.fecha_realizado,
+                descripcion: this.form.descripcion,
+                tecnico: this.form.tecnico,
+            };
+            if (this.form.fecha_proximo) payload.fecha_proximo = this.form.fecha_proximo;
+            if (this.form.costo !== '') payload.costo = parseFloat(this.form.costo) || null;
+
+            try {
+                const resp = await fetch('/api/it/mantenimientos/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    this.exitoMsg = true;
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    this.errorMsg = Object.values(data).flat().join(' ') || 'Error al registrar.';
+                }
+            } catch (e) {
+                this.errorMsg = 'Error de conexión. Intenta de nuevo.';
+            } finally {
+                this.cargando = false;
+            }
+        },
+    };
+}
+</script>
+</body>
+</html>
