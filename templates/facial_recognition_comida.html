@@ -7,8 +7,13 @@
     <title>Control de Asistencia - Sistema de Checador</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         #video {
+            transform: scaleX(-1);
+            border-radius: 1rem;
+        }
+        #faceOverlay {
             transform: scaleX(-1);
             border-radius: 1rem;
         }
@@ -87,6 +92,7 @@
                         <!-- Video Preview -->
                         <div class="relative">
                             <video id="video" autoplay playsinline class="w-full bg-black"></video>
+                            <canvas id="faceOverlay" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
                             <div id="videoPlaceholder" class="w-full aspect-video bg-gray-800 rounded-2xl flex items-center justify-center">
                                 <div class="text-center text-gray-400">
                                     <i class="fas fa-video-slash text-6xl mb-4"></i>
@@ -94,7 +100,12 @@
                                 </div>
                             </div>
                         </div>
-                        
+
+                        <!-- Indicador de rostro -->
+                        <div id="faceStatus" class="mt-2 text-center text-sm font-medium text-gray-500">
+                            <i class="fas fa-video-slash mr-1"></i>Activa la cámara
+                        </div>
+
                         <canvas id="canvas"></canvas>
                         
                         <!-- Camera Controls -->
@@ -315,11 +326,12 @@
                 startCameraBtn.classList.add('hidden');
                 stopCameraBtn.classList.remove('hidden');
                 switchCameraBtn.classList.remove('hidden');
-                
+
                 const cameraType = facingMode === 'user' ? 'Frontal' : 'Trasera';
                 cameraStatus.innerHTML = `<i class="fas fa-circle text-green-500 animate-pulse"></i> Cámara ${cameraType} activa`;
-                
+
                 btnVerificar.disabled = false;
+                iniciarDeteccion();
             } catch (err) {
                 showResult('error', 'Error al acceder a la cámara: ' + err.message);
             }
@@ -337,6 +349,7 @@
         stopCameraBtn.addEventListener('click', () => {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
+                stream = null;
                 video.srcObject = null;
                 video.style.display = 'none';
                 videoPlaceholder.style.display = 'flex';
@@ -345,6 +358,7 @@
                 switchCameraBtn.classList.add('hidden');
                 cameraStatus.innerHTML = '<i class="fas fa-circle text-red-500 animate-pulse"></i> Cámara desactivada';
                 btnVerificar.disabled = true;
+                detenerDeteccion();
             }
         });
 
@@ -658,6 +672,127 @@
             } else {
                 loading.classList.add('hidden');
             }
+        }
+
+        // ── Detección de rostro en tiempo real ──────────────────────────
+        const faceOverlay = document.getElementById('faceOverlay');
+        const faceOverlayCtx = faceOverlay.getContext('2d');
+        let faceDetectionActive = false;
+        let modelosCargados = false;
+
+        // Pre-cargar modelo al abrir la página
+        (async () => {
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(
+                    'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
+                );
+                modelosCargados = true;
+            } catch(e) {
+                console.warn('Modelos de detección no disponibles:', e);
+            }
+        })();
+
+        async function iniciarDeteccion() {
+            if (!modelosCargados) {
+                try {
+                    await faceapi.nets.tinyFaceDetector.loadFromUri(
+                        'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
+                    );
+                    modelosCargados = true;
+                } catch(e) { return; }
+            }
+            faceDetectionActive = true;
+            detectarRostroLoop();
+        }
+
+        function detenerDeteccion() {
+            faceDetectionActive = false;
+            faceOverlayCtx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+            actualizarEstadoRostro('inactivo');
+        }
+
+        async function detectarRostroLoop() {
+            if (!faceDetectionActive || !stream) return;
+
+            if (video.readyState >= 2 && video.videoWidth > 0) {
+                faceOverlay.width = video.videoWidth;
+                faceOverlay.height = video.videoHeight;
+                faceOverlayCtx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+
+                try {
+                    const detecciones = await faceapi.detectAllFaces(
+                        video,
+                        new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                    );
+
+                    if (detecciones.length === 1) {
+                        const box = detecciones[0].box;
+                        const areaRostro = (box.width * box.height) / (video.videoWidth * video.videoHeight);
+                        const cx = box.x + box.width / 2;
+                        const cy = box.y + box.height / 2;
+                        const centrado = Math.abs(cx - video.videoWidth / 2) < video.videoWidth * 0.3 &&
+                                         Math.abs(cy - video.videoHeight / 2) < video.videoHeight * 0.3;
+                        const suficienteGrande = areaRostro > 0.06;
+
+                        if (centrado && suficienteGrande) {
+                            dibujarMarco(box, '#22c55e');
+                            actualizarEstadoRostro('ok');
+                        } else {
+                            dibujarMarco(box, '#f59e0b');
+                            actualizarEstadoRostro('advertencia');
+                        }
+                    } else if (detecciones.length === 0) {
+                        actualizarEstadoRostro('ninguno');
+                    } else {
+                        detecciones.forEach(d => dibujarMarco(d.box, '#ef4444'));
+                        actualizarEstadoRostro('multiple');
+                    }
+                } catch(e) {}
+            }
+
+            setTimeout(() => { if (faceDetectionActive) requestAnimationFrame(detectarRostroLoop); }, 150);
+        }
+
+        function dibujarMarco(box, color) {
+            const { x, y, width, height } = box;
+            const esquina = Math.min(width, height) * 0.22;
+
+            faceOverlayCtx.lineCap = 'round';
+            faceOverlayCtx.lineWidth = 3;
+            faceOverlayCtx.shadowColor = color;
+            faceOverlayCtx.shadowBlur = 14;
+            faceOverlayCtx.strokeStyle = color;
+
+            faceOverlayCtx.beginPath();
+            // Esquina superior izquierda
+            faceOverlayCtx.moveTo(x + esquina, y); faceOverlayCtx.lineTo(x, y); faceOverlayCtx.lineTo(x, y + esquina);
+            // Esquina superior derecha
+            faceOverlayCtx.moveTo(x + width - esquina, y); faceOverlayCtx.lineTo(x + width, y); faceOverlayCtx.lineTo(x + width, y + esquina);
+            // Esquina inferior izquierda
+            faceOverlayCtx.moveTo(x, y + height - esquina); faceOverlayCtx.lineTo(x, y + height); faceOverlayCtx.lineTo(x + esquina, y + height);
+            // Esquina inferior derecha
+            faceOverlayCtx.moveTo(x + width - esquina, y + height); faceOverlayCtx.lineTo(x + width, y + height); faceOverlayCtx.lineTo(x + width, y + height - esquina);
+            faceOverlayCtx.stroke();
+
+            // Marco interior semi-transparente
+            faceOverlayCtx.shadowBlur = 0;
+            faceOverlayCtx.strokeStyle = color + '33';
+            faceOverlayCtx.lineWidth = 1;
+            faceOverlayCtx.strokeRect(x + 2, y + 2, width - 4, height - 4);
+        }
+
+        function actualizarEstadoRostro(estado) {
+            const el = document.getElementById('faceStatus');
+            const estados = {
+                'ok':          { texto: 'Rostro listo — puedes verificar',  color: 'text-green-400',  icono: 'fa-circle-check' },
+                'advertencia': { texto: 'Centra o acerca tu rostro',         color: 'text-amber-400',  icono: 'fa-triangle-exclamation' },
+                'ninguno':     { texto: 'No se detecta ningún rostro',       color: 'text-red-400',    icono: 'fa-face-frown' },
+                'multiple':    { texto: 'Solo un rostro a la vez',           color: 'text-red-400',    icono: 'fa-users' },
+                'inactivo':    { texto: 'Activa la cámara',                  color: 'text-gray-500',   icono: 'fa-video-slash' },
+            };
+            const s = estados[estado] || estados['inactivo'];
+            el.innerHTML = `<i class="fas ${s.icono} mr-1"></i>${s.texto}`;
+            el.className = `mt-2 text-center text-sm font-medium transition-colors duration-300 ${s.color}`;
         }
     </script>
 </body>
