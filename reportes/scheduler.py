@@ -2,8 +2,9 @@
 Scheduler automatico de reportes usando Django APScheduler.
 Reemplaza la configuracion de cron por un sistema interno de Django.
 """
+import fcntl
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -11,6 +12,9 @@ from apscheduler.triggers.cron import CronTrigger
 from django_apscheduler.jobstores import DjangoJobStore
 from django_apscheduler.models import DjangoJobExecution
 from django_apscheduler import util
+
+# Handle del lock file — se mantiene abierto mientras viva el proceso que adquirio el lock
+_scheduler_lock_fh = None
 
 logger = logging.getLogger(__name__)
 
@@ -370,8 +374,22 @@ def delete_old_job_executions(max_age=604_800):
 def start_scheduler():
     """
     Inicializa y configura el scheduler con los jobs de reportes.
-    Se ejecuta automaticamente al iniciar Django via apps.py
+    Se ejecuta automaticamente al iniciar Django via apps.py.
+    Usa un file lock para garantizar que solo un worker de gunicorn
+    arranque el scheduler, evitando envios duplicados de correos.
     """
+    global _scheduler_lock_fh
+
+    lock_path = '/tmp/checador_scheduler.lock'
+    lock_fh = open(lock_path, 'w')
+    try:
+        fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _scheduler_lock_fh = lock_fh  # mantener referencia para que no se cierre
+    except OSError:
+        lock_fh.close()
+        logger.info("Scheduler ya iniciado en otro worker, omitiendo inicio duplicado")
+        return
+
     scheduler = BackgroundScheduler(timezone=settings.TIME_ZONE)
     scheduler.add_jobstore(DjangoJobStore(), "default")
     
