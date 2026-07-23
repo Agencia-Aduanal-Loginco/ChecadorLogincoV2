@@ -526,6 +526,7 @@
                 const activo = disponibles.includes(tipo);
                 btn.classList.toggle('hidden', !activo);
                 btn.disabled = !activo;
+                btn.title = activo ? '' : 'No disponible en este momento';
                 btn.classList.remove('ring-4', 'ring-offset-2', 'ring-green-300', 'ring-orange-300', 'ring-blue-300', 'ring-red-300');
                 if (activo) {
                     btn.classList.add('ring-4', 'ring-offset-2', ringPorTipo[tipo]);

@@ -36,3 +36,6 @@ class FacialRecognitionComidaTemplateTests(TestCase):
         self.assertIn(
             "classList.toggle('hidden', disponibles.length === 0)", content
         )
+        self.assertIn(
+            "classList.toggle('hidden', disponibles.length > 0)", content
+        )
