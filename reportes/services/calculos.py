@@ -15,16 +15,23 @@ def contar_dias_laborales(fecha_inicio, fecha_fin):
     return dias
 
 
-def obtener_datos_reporte(fecha_inicio, fecha_fin):
+def obtener_datos_reporte(fecha_inicio, fecha_fin, empresa=None):
     """Obtiene todos los datos necesarios para generar un reporte de asistencia"""
     empleados = Empleado.objects.filter(activo=True).select_related(
         'user', 'departamento_obj'
     ).order_by('codigo_empleado')
 
-    registros = list(RegistroAsistencia.objects.filter(
+    if empresa is not None:
+        empleados = empleados.filter(empresa=empresa)
+
+    registros_qs = RegistroAsistencia.objects.filter(
         fecha__range=[fecha_inicio, fecha_fin],
         empleado__activo=True
-    ).select_related('empleado', 'empleado__user'))
+    )
+    if empresa is not None:
+        registros_qs = registros_qs.filter(empleado__empresa=empresa)
+
+    registros = list(registros_qs.select_related('empleado', 'empleado__user'))
 
     dias_laborales = contar_dias_laborales(fecha_inicio, fecha_fin)
 
@@ -67,6 +74,7 @@ def obtener_datos_reporte(fecha_inicio, fecha_fin):
     return {
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
+        'empresa': empresa,
         'dias_laborales': dias_laborales,
         'datos_empleados': datos_empleados,
         'top_retardos': top_retardos,
