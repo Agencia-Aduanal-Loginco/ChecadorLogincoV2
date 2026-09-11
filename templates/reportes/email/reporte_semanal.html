@@ -27,6 +27,7 @@
     <div class="container">
         <div class="header">
             <h1>Reporte Semanal de Asistencia</h1>
+            {% if empresa %}<p style="font-weight:bold;">{{ empresa.nombre }}</p>{% endif %}
             <p>{{ fecha_inicio }} al {{ fecha_fin }}</p>
         </div>
 

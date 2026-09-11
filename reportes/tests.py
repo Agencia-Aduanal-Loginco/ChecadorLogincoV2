@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.template.loader import render_to_string
 from django.test import TestCase
 
 from empleados.models import Empleado
@@ -113,3 +114,17 @@ class EnviarReporteEmpresaTests(TestCase):
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('Loginco', mail.outbox[0].subject)
+
+
+class ReporteEmailTemplateEmpresaTests(TestCase):
+    def test_template_diario_muestra_nombre_de_empresa(self):
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test.
+        empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        datos = obtener_datos_reporte(date(2026, 1, 1), date(2026, 1, 1), empresa=empresa)
+
+        html = render_to_string('reportes/email/reporte_diario.html', datos)
+
+        self.assertIn('Loginco', html)

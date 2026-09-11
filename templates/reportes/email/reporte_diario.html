@@ -27,6 +27,7 @@
     <div class="container">
         <div class="header">
             <h1>Reporte Diario de Asistencia</h1>
+            {% if empresa %}<p style="font-weight:bold;">{{ empresa.nombre }}</p>{% endif %}
             <p>{{ fecha_inicio }}</p>
         </div>
 
