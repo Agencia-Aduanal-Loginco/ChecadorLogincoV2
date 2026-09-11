@@ -1,6 +1,35 @@
 from django.db import models
 
 
+class Empresa(models.Model):
+    """Modelo para representar una empresa cliente del sistema"""
+
+    nombre = models.CharField(
+        max_length=150,
+        unique=True,
+        verbose_name='Nombre'
+    )
+    codigo = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name='Código'
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name='Activo'
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Empresa'
+        verbose_name_plural = 'Empresas'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+
 class Departamento(models.Model):
     """Modelo para representar un departamento en la estructura organizacional"""
 

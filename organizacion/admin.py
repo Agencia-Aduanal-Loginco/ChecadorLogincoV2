@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Departamento, RelacionSupervision
+from .models import Departamento, Empresa, RelacionSupervision
+
+
+@admin.register(Empresa)
+class EmpresaAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'nombre', 'activo')
+    list_filter = ('activo',)
+    search_fields = ('codigo', 'nombre')
+    readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
 
 
 @admin.register(Departamento)
