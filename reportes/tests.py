@@ -9,7 +9,8 @@ from django.test import TestCase
 
 from empleados.models import Empleado
 from organizacion.models import Empresa
-from reportes.models import ConfiguracionReporte
+from reportes.models import ConfiguracionReporte, DestinatarioReporte, LogReporte
+from reportes.scheduler import enviar_reporte_diario
 from reportes.services.calculos import obtener_datos_reporte
 from reportes.services.generador_email import enviar_reporte
 
@@ -128,3 +129,40 @@ class ReporteEmailTemplateEmpresaTests(TestCase):
         html = render_to_string('reportes/email/reporte_diario.html', datos)
 
         self.assertIn('Loginco', html)
+
+
+class SchedulerReporteDiarioMultiEmpresaTests(TestCase):
+    def setUp(self):
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test antes de setUp().
+        self.empresa_a, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        self.empresa_b = Empresa.objects.create(nombre='Otra SA', codigo='OTRA')
+
+        user_a = User.objects.create_user(username='diario_a', password='x')
+        Empleado.objects.create(user=user_a, codigo_empleado='DA001', empresa=self.empresa_a)
+
+        user_b = User.objects.create_user(username='diario_b', password='x')
+        Empleado.objects.create(user=user_b, codigo_empleado='DB001', empresa=self.empresa_b)
+
+        config_a = ConfiguracionReporte.objects.create(tipo='diario', empresa=self.empresa_a, activo=True)
+        DestinatarioReporte.objects.create(configuracion=config_a, nombre='RH Loginco', email='rh@loginco.test')
+
+        config_b = ConfiguracionReporte.objects.create(tipo='diario', empresa=self.empresa_b, activo=True)
+        DestinatarioReporte.objects.create(configuracion=config_b, nombre='RH Otra', email='rh@otra.test')
+
+    def test_envia_un_correo_independiente_por_empresa(self):
+        enviar_reporte_diario()
+
+        self.assertEqual(len(mail.outbox), 2)
+        destinatarios = sorted(m.to[0] for m in mail.outbox)
+        self.assertEqual(destinatarios, ['rh@loginco.test', 'rh@otra.test'])
+
+        asuntos = [m.subject for m in mail.outbox]
+        self.assertTrue(any('Loginco' in a for a in asuntos))
+        self.assertTrue(any('Otra SA' in a for a in asuntos))
+
+        self.assertEqual(
+            LogReporte.objects.filter(tipo_reporte='diario', estado='enviado').count(), 2
+        )

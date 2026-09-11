@@ -21,184 +21,188 @@ logger = logging.getLogger(__name__)
 
 @util.close_old_connections
 def enviar_reporte_diario():
-    """Job para enviar reporte diario"""
+    """Job para enviar reporte diario (uno independiente por cada empresa con configuracion activa)"""
     from reportes.services.calculos import obtener_datos_reporte
     from reportes.services.generador_excel import generar_reporte_excel
     from reportes.services.generador_email import enviar_reporte
     from reportes.models import ConfiguracionReporte, LogReporte
-    
+
     logger.info("Iniciando envio de reporte diario")
-    
-    try:
-        # Obtener configuracion
-        config = ConfiguracionReporte.objects.filter(tipo='diario', activo=True).first()
-        if not config:
-            logger.warning("No hay configuracion activa para reporte diario")
-            return
-        
-        destinatarios = config.destinatarios.filter(activo=True)
-        if not destinatarios.exists():
-            logger.warning("No hay destinatarios activos para reporte diario")
-            return
-        
-        # Obtener datos de hoy
-        hoy = timezone.now().date()
-        datos = obtener_datos_reporte(hoy, hoy)
-        
-        # Generar Excel si esta configurado
-        archivo_excel = None
-        if config.incluir_excel:
-            archivo_excel = generar_reporte_excel(datos)
-        
-        # Enviar reporte
-        num_enviados = enviar_reporte('diario', datos, destinatarios, archivo_excel=archivo_excel)
-        
-        # Registrar en log
-        LogReporte.objects.create(
-            tipo_reporte='diario',
-            fecha_inicio_rango=hoy,
-            fecha_fin_rango=hoy,
-            destinatarios_enviados=num_enviados,
-            estado='enviado'
-        )
-        
-        logger.info(f"Reporte diario enviado exitosamente a {num_enviados} destinatarios")
-        
-    except Exception as e:
-        logger.error(f"Error al enviar reporte diario: {e}")
-        LogReporte.objects.create(
-            tipo_reporte='diario',
-            fecha_inicio_rango=timezone.now().date(),
-            fecha_fin_rango=timezone.now().date(),
-            destinatarios_enviados=0,
-            estado='error',
-            error_detalle=str(e)
-        )
+
+    configs = ConfiguracionReporte.objects.filter(tipo='diario', activo=True).select_related('empresa')
+    if not configs:
+        logger.warning("No hay configuracion activa para reporte diario")
+        return
+
+    hoy = timezone.now().date()
+
+    for config in configs:
+        nombre_empresa = config.empresa.nombre if config.empresa else 'sin empresa'
+        try:
+            destinatarios = config.destinatarios.filter(activo=True)
+            if not destinatarios.exists():
+                logger.warning("No hay destinatarios activos para reporte diario de %s", nombre_empresa)
+                continue
+
+            datos = obtener_datos_reporte(hoy, hoy, empresa=config.empresa)
+
+            archivo_excel = None
+            if config.incluir_excel:
+                archivo_excel = generar_reporte_excel(datos)
+
+            num_enviados = enviar_reporte(
+                'diario', datos, destinatarios, archivo_excel=archivo_excel, empresa=config.empresa
+            )
+
+            LogReporte.objects.create(
+                tipo_reporte='diario',
+                empresa=config.empresa,
+                fecha_inicio_rango=hoy,
+                fecha_fin_rango=hoy,
+                destinatarios_enviados=num_enviados,
+                estado='enviado'
+            )
+
+            logger.info("Reporte diario de %s enviado exitosamente a %d destinatarios", nombre_empresa, num_enviados)
+
+        except Exception as e:
+            logger.error("Error al enviar reporte diario de %s: %s", nombre_empresa, e)
+            LogReporte.objects.create(
+                tipo_reporte='diario',
+                empresa=config.empresa,
+                fecha_inicio_rango=hoy,
+                fecha_fin_rango=hoy,
+                destinatarios_enviados=0,
+                estado='error',
+                error_detalle=str(e)
+            )
 
 
 @util.close_old_connections
 def enviar_reporte_semanal():
-    """Job para enviar reporte semanal"""
+    """Job para enviar reporte semanal (uno independiente por cada empresa con configuracion activa)"""
     from reportes.services.calculos import obtener_datos_reporte
     from reportes.services.generador_excel import generar_reporte_excel
     from reportes.services.generador_email import enviar_reporte
     from reportes.models import ConfiguracionReporte, LogReporte
-    
+
     logger.info("Iniciando envio de reporte semanal")
-    
-    try:
-        # Obtener configuracion
-        config = ConfiguracionReporte.objects.filter(tipo='semanal', activo=True).first()
-        if not config:
-            logger.warning("No hay configuracion activa para reporte semanal")
-            return
-        
-        destinatarios = config.destinatarios.filter(activo=True)
-        if not destinatarios.exists():
-            logger.warning("No hay destinatarios activos para reporte semanal")
-            return
-        
-        # Calcular rango de la semana (lunes a hoy)
-        hoy = timezone.now().date()
-        fecha_inicio = hoy - timedelta(days=hoy.weekday())
-        
-        # Obtener datos
-        datos = obtener_datos_reporte(fecha_inicio, hoy)
-        
-        # Generar Excel (siempre para semanal)
-        archivo_excel = generar_reporte_excel(datos)
-        
-        # Enviar reporte
-        num_enviados = enviar_reporte('semanal', datos, destinatarios, archivo_excel=archivo_excel)
-        
-        # Registrar en log
-        LogReporte.objects.create(
-            tipo_reporte='semanal',
-            fecha_inicio_rango=fecha_inicio,
-            fecha_fin_rango=hoy,
-            destinatarios_enviados=num_enviados,
-            estado='enviado'
-        )
-        
-        logger.info(f"Reporte semanal enviado exitosamente a {num_enviados} destinatarios")
-        
-    except Exception as e:
-        logger.error(f"Error al enviar reporte semanal: {e}")
-        LogReporte.objects.create(
-            tipo_reporte='semanal',
-            fecha_inicio_rango=timezone.now().date(),
-            fecha_fin_rango=timezone.now().date(),
-            destinatarios_enviados=0,
-            estado='error',
-            error_detalle=str(e)
-        )
+
+    configs = ConfiguracionReporte.objects.filter(tipo='semanal', activo=True).select_related('empresa')
+    if not configs:
+        logger.warning("No hay configuracion activa para reporte semanal")
+        return
+
+    # Calcular rango de la semana (lunes a hoy)
+    hoy = timezone.now().date()
+    fecha_inicio = hoy - timedelta(days=hoy.weekday())
+
+    for config in configs:
+        nombre_empresa = config.empresa.nombre if config.empresa else 'sin empresa'
+        try:
+            destinatarios = config.destinatarios.filter(activo=True)
+            if not destinatarios.exists():
+                logger.warning("No hay destinatarios activos para reporte semanal de %s", nombre_empresa)
+                continue
+
+            datos = obtener_datos_reporte(fecha_inicio, hoy, empresa=config.empresa)
+
+            # Generar Excel (siempre para semanal)
+            archivo_excel = generar_reporte_excel(datos)
+
+            num_enviados = enviar_reporte(
+                'semanal', datos, destinatarios, archivo_excel=archivo_excel, empresa=config.empresa
+            )
+
+            LogReporte.objects.create(
+                tipo_reporte='semanal',
+                empresa=config.empresa,
+                fecha_inicio_rango=fecha_inicio,
+                fecha_fin_rango=hoy,
+                destinatarios_enviados=num_enviados,
+                estado='enviado'
+            )
+
+            logger.info("Reporte semanal de %s enviado exitosamente a %d destinatarios", nombre_empresa, num_enviados)
+
+        except Exception as e:
+            logger.error("Error al enviar reporte semanal de %s: %s", nombre_empresa, e)
+            LogReporte.objects.create(
+                tipo_reporte='semanal',
+                empresa=config.empresa,
+                fecha_inicio_rango=fecha_inicio,
+                fecha_fin_rango=hoy,
+                destinatarios_enviados=0,
+                estado='error',
+                error_detalle=str(e)
+            )
 
 
 @util.close_old_connections
 def enviar_reporte_quincenal():
-    """Job para enviar reporte quincenal"""
+    """Job para enviar reporte quincenal (uno independiente por cada empresa con configuracion activa)"""
     import calendar
     from reportes.services.calculos import obtener_datos_reporte
     from reportes.services.generador_excel import generar_reporte_excel
     from reportes.services.generador_email import enviar_reporte
     from reportes.models import ConfiguracionReporte, LogReporte
-    
+
     logger.info("Iniciando envio de reporte quincenal")
-    
-    try:
-        # Obtener configuracion
-        config = ConfiguracionReporte.objects.filter(tipo='quincenal', activo=True).first()
-        if not config:
-            logger.warning("No hay configuracion activa para reporte quincenal")
-            return
-        
-        destinatarios = config.destinatarios.filter(activo=True)
-        if not destinatarios.exists():
-            logger.warning("No hay destinatarios activos para reporte quincenal")
-            return
-        
-        # Calcular rango quincenal
-        hoy = timezone.now().date()
-        if hoy.day <= 14:
-            # Primera quincena (1-14)
-            fecha_inicio = hoy.replace(day=1)
-            fecha_fin = hoy.replace(day=14)
-        else:
-            # Segunda quincena (15-ultimo dia)
-            fecha_inicio = hoy.replace(day=15)
-            ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
-            fecha_fin = hoy.replace(day=ultimo_dia)
-        
-        # Obtener datos
-        datos = obtener_datos_reporte(fecha_inicio, fecha_fin)
-        
-        # Generar Excel (siempre para quincenal)
-        archivo_excel = generar_reporte_excel(datos)
-        
-        # Enviar reporte
-        num_enviados = enviar_reporte('quincenal', datos, destinatarios, archivo_excel=archivo_excel)
-        
-        # Registrar en log
-        LogReporte.objects.create(
-            tipo_reporte='quincenal',
-            fecha_inicio_rango=fecha_inicio,
-            fecha_fin_rango=fecha_fin,
-            destinatarios_enviados=num_enviados,
-            estado='enviado'
-        )
-        
-        logger.info(f"Reporte quincenal enviado exitosamente a {num_enviados} destinatarios")
-        
-    except Exception as e:
-        logger.error(f"Error al enviar reporte quincenal: {e}")
-        LogReporte.objects.create(
-            tipo_reporte='quincenal',
-            fecha_inicio_rango=timezone.now().date(),
-            fecha_fin_rango=timezone.now().date(),
-            destinatarios_enviados=0,
-            estado='error',
-            error_detalle=str(e)
-        )
+
+    configs = ConfiguracionReporte.objects.filter(tipo='quincenal', activo=True).select_related('empresa')
+    if not configs:
+        logger.warning("No hay configuracion activa para reporte quincenal")
+        return
+
+    # Calcular rango quincenal
+    hoy = timezone.now().date()
+    if hoy.day <= 14:
+        fecha_inicio = hoy.replace(day=1)
+        fecha_fin = hoy.replace(day=14)
+    else:
+        fecha_inicio = hoy.replace(day=15)
+        ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+        fecha_fin = hoy.replace(day=ultimo_dia)
+
+    for config in configs:
+        nombre_empresa = config.empresa.nombre if config.empresa else 'sin empresa'
+        try:
+            destinatarios = config.destinatarios.filter(activo=True)
+            if not destinatarios.exists():
+                logger.warning("No hay destinatarios activos para reporte quincenal de %s", nombre_empresa)
+                continue
+
+            datos = obtener_datos_reporte(fecha_inicio, fecha_fin, empresa=config.empresa)
+
+            # Generar Excel (siempre para quincenal)
+            archivo_excel = generar_reporte_excel(datos)
+
+            num_enviados = enviar_reporte(
+                'quincenal', datos, destinatarios, archivo_excel=archivo_excel, empresa=config.empresa
+            )
+
+            LogReporte.objects.create(
+                tipo_reporte='quincenal',
+                empresa=config.empresa,
+                fecha_inicio_rango=fecha_inicio,
+                fecha_fin_rango=fecha_fin,
+                destinatarios_enviados=num_enviados,
+                estado='enviado'
+            )
+
+            logger.info("Reporte quincenal de %s enviado exitosamente a %d destinatarios", nombre_empresa, num_enviados)
+
+        except Exception as e:
+            logger.error("Error al enviar reporte quincenal de %s: %s", nombre_empresa, e)
+            LogReporte.objects.create(
+                tipo_reporte='quincenal',
+                empresa=config.empresa,
+                fecha_inicio_rango=fecha_inicio,
+                fecha_fin_rango=fecha_fin,
+                destinatarios_enviados=0,
+                estado='error',
+                error_detalle=str(e)
+            )
 
 
 @util.close_old_connections
