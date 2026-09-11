@@ -5,22 +5,23 @@ from organizacion.models import Empresa
 
 
 class EmpresaModelTests(TestCase):
-    def test_crea_empresa_con_nombre_y_codigo(self):
-        empresa = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+    def setUp(self):
+        self.loginco, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
 
-        self.assertEqual(str(empresa), 'LOGINCO - Loginco')
+    def test_crea_empresa_con_nombre_y_codigo(self):
+        empresa = Empresa.objects.create(nombre='Otra Empresa', codigo='OTRA')
+
+        self.assertEqual(str(empresa), 'OTRA - Otra Empresa')
         self.assertTrue(empresa.activo)
 
     def test_codigo_debe_ser_unico(self):
-        Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
-
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                Empresa.objects.create(nombre='Otra Empresa', codigo='LOGINCO')
+                Empresa.objects.create(nombre='Otra Empresa', codigo=self.loginco.codigo)
 
     def test_nombre_debe_ser_unico(self):
-        Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
-
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                Empresa.objects.create(nombre='Loginco', codigo='OTRO')
+                Empresa.objects.create(nombre=self.loginco.nombre, codigo='OTRO')

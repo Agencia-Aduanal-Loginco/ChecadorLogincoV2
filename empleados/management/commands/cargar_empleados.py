@@ -34,6 +34,12 @@ class Command(BaseCommand):
             help='Departamento por defecto'
         )
         parser.add_argument(
+            '--empresa',
+            type=str,
+            default='LOGINCO',
+            help='Codigo de la empresa a la que se asignaran los empleados (default: LOGINCO)'
+        )
+        parser.add_argument(
             '--dry-run',
             action='store_true',
             help='Mostrar lo que se haría sin crear registros'
@@ -44,6 +50,13 @@ class Command(BaseCommand):
         password = options['password']
         departamento = options['departamento']
         dry_run = options['dry_run']
+
+        from organizacion.models import Empresa
+        try:
+            empresa = Empresa.objects.get(codigo=options['empresa'])
+        except Empresa.DoesNotExist:
+            self.stdout.write(self.style.ERROR(f'No existe una empresa con codigo "{options["empresa"]}"'))
+            return
 
         self.stdout.write(f'Cargando empleados desde: {archivo}')
 
@@ -118,7 +131,8 @@ class Command(BaseCommand):
                     user=user,
                     codigo_empleado=codigo,
                     departamento=departamento,
-                    activo=True
+                    activo=True,
+                    empresa=empresa,
                 )
 
                 self.stdout.write(self.style.SUCCESS(f'    Creado: {empleado}'))

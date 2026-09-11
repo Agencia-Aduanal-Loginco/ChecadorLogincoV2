@@ -16,7 +16,7 @@ class EmpleadoEmpresaRequeridaTests(TestCase):
 
     def test_empleado_requiere_empresa(self):
         user = User.objects.create_user(username='sinempresa', password='x')
-        empleado = Empleado(user=user, codigo_empleado='SE001')
+        empleado = Empleado(user=user, codigo_empleado='SE001', departamento='Ventas')
 
         with self.assertRaises(ValidationError):
             empleado.full_clean()
