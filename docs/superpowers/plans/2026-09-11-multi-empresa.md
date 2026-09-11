@@ -485,7 +485,12 @@ from django.urls import reverse
 
 class RegistroConEmpresaTests(TestCase):
     def setUp(self):
-        self.empresa = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+        # La migracion de backfill de Task 3 ya crea la empresa LOGINCO en la
+        # base de datos de test antes de que corra setUp(), asi que se usa
+        # get_or_create en vez de create() para evitar un IntegrityError.
+        self.empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
 
     def test_formulario_muestra_las_empresas_activas(self):
         response = self.client.get(reverse('register'))
@@ -696,7 +701,11 @@ from django.contrib.auth.models import User as AuthUser  # noqa: keep explicit f
 class EmpleadosListaEmpresaTests(TestCase):
     def setUp(self):
         self.staff = User.objects.create_user(username='staff1', password='x', is_staff=True)
-        self.empresa_a = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+        # get_or_create: la migracion de backfill de Task 3 ya crea LOGINCO
+        # en la base de datos de test antes de setUp().
+        self.empresa_a, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
         self.empresa_b = Empresa.objects.create(nombre='Otra SA', codigo='OTRA')
 
         user_a = User.objects.create_user(username='lista_a', password='x')
@@ -1028,7 +1037,11 @@ from reportes.models import ConfiguracionReporte
 
 class ConfiguracionReporteEmpresaTests(TestCase):
     def setUp(self):
-        self.empresa_a = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test antes de setUp().
+        self.empresa_a, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
         self.empresa_b = Empresa.objects.create(nombre='Otra SA', codigo='OTRA')
 
     def test_diario_requiere_empresa(self):
@@ -1307,7 +1320,11 @@ from reportes.services.calculos import obtener_datos_reporte
 
 class ObtenerDatosReporteEmpresaTests(TestCase):
     def setUp(self):
-        self.empresa_a = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test antes de setUp().
+        self.empresa_a, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
         self.empresa_b = Empresa.objects.create(nombre='Otra SA', codigo='OTRA')
 
         user_a = User.objects.create_user(username='calc_a', password='x')
@@ -1456,7 +1473,11 @@ class _DestinatarioFake:
 
 class EnviarReporteEmpresaTests(TestCase):
     def test_asunto_incluye_nombre_de_empresa(self):
-        empresa = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test.
+        empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
         datos = {
             'fecha_inicio': date(2026, 1, 1),
             'fecha_fin': date(2026, 1, 1),
@@ -1549,7 +1570,11 @@ from django.template.loader import render_to_string
 
 class ReporteEmailTemplateEmpresaTests(TestCase):
     def test_template_diario_muestra_nombre_de_empresa(self):
-        empresa = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test.
+        empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
         datos = obtener_datos_reporte(date(2026, 1, 1), date(2026, 1, 1), empresa=empresa)
 
         html = render_to_string('reportes/email/reporte_diario.html', datos)
@@ -1644,7 +1669,11 @@ from reportes.scheduler import enviar_reporte_diario
 
 class SchedulerReporteDiarioMultiEmpresaTests(TestCase):
     def setUp(self):
-        self.empresa_a = Empresa.objects.create(nombre='Loginco', codigo='LOGINCO')
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test antes de setUp().
+        self.empresa_a, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
         self.empresa_b = Empresa.objects.create(nombre='Otra SA', codigo='OTRA')
 
         user_a = User.objects.create_user(username='diario_a', password='x')
