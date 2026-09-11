@@ -33,6 +33,14 @@ class Empleado(models.Model):
     )  # Para almacenar el encoding facial
 
     # Información laboral
+    empresa = models.ForeignKey(
+        'organizacion.Empresa',
+        on_delete=models.PROTECT,
+        related_name='empleados',
+        null=True,
+        blank=True,
+        verbose_name='Empresa'
+    )
     horas_semana = models.IntegerField(
         default=40,
         verbose_name='Horas por Semana'
