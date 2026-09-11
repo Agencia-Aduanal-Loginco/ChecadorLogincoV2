@@ -1,4 +1,5 @@
 from datetime import time
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -18,11 +19,21 @@ class ConfiguracionReporte(models.Model):
         (6, 'Sabado'),
     ]
 
+    ATTENDANCE_TYPES = ('diario', 'semanal', 'quincenal')
+
     tipo = models.CharField(
         max_length=20,
         choices=TIPO_REPORTE_CHOICES,
-        unique=True,
         verbose_name='Tipo de Reporte'
+    )
+    empresa = models.ForeignKey(
+        'organizacion.Empresa',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='configuraciones_reporte',
+        verbose_name='Empresa',
+        help_text='Obligatorio para diario/semanal/quincenal. Debe quedar vacío para inventario/tickets_it/permisos.'
     )
     activo = models.BooleanField(default=True, verbose_name='Activo')
     hora_envio = models.TimeField(
@@ -56,9 +67,31 @@ class ConfiguracionReporte(models.Model):
     class Meta:
         verbose_name = 'Configuracion de Reporte'
         verbose_name_plural = 'Configuraciones de Reportes'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tipo'], condition=models.Q(empresa__isnull=True),
+                name='config_reporte_unico_sin_empresa'
+            ),
+            models.UniqueConstraint(
+                fields=['tipo', 'empresa'], condition=models.Q(empresa__isnull=False),
+                name='config_reporte_unico_por_empresa'
+            ),
+        ]
 
     def __str__(self):
+        if self.empresa:
+            return f"Reporte {self.get_tipo_display()} - {self.empresa.nombre} - {'Activo' if self.activo else 'Inactivo'}"
         return f"Reporte {self.get_tipo_display()} - {'Activo' if self.activo else 'Inactivo'}"
+
+    def clean(self):
+        if self.tipo in self.ATTENDANCE_TYPES and self.empresa_id is None:
+            raise ValidationError({
+                'empresa': 'La empresa es obligatoria para reportes de asistencia (diario, semanal, quincenal).'
+            })
+        if self.tipo not in self.ATTENDANCE_TYPES and self.empresa_id is not None:
+            raise ValidationError({
+                'empresa': 'Este tipo de reporte no debe tener empresa asignada.'
+            })
 
 
 class DestinatarioReporte(models.Model):
@@ -90,6 +123,14 @@ class LogReporte(models.Model):
     ]
 
     tipo_reporte = models.CharField(max_length=20, verbose_name='Tipo')
+    empresa = models.ForeignKey(
+        'organizacion.Empresa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='logs_reporte',
+        verbose_name='Empresa'
+    )
     fecha_inicio_rango = models.DateField(verbose_name='Fecha inicio')
     fecha_fin_rango = models.DateField(verbose_name='Fecha fin')
     destinatarios_enviados = models.IntegerField(default=0, verbose_name='Destinatarios')

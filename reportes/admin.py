@@ -9,13 +9,14 @@ class DestinatarioInline(admin.TabularInline):
 
 @admin.register(ConfiguracionReporte)
 class ConfiguracionReporteAdmin(admin.ModelAdmin):
-    list_display = ('tipo', 'activo', 'hora_envio', 'dia_envio_semanal', 'incluir_excel', 'num_destinatarios')
-    list_filter = ('activo', 'tipo')
+    list_display = ('tipo', 'empresa', 'activo', 'hora_envio', 'dia_envio_semanal', 'incluir_excel', 'num_destinatarios')
+    list_filter = ('activo', 'tipo', 'empresa')
+    autocomplete_fields = ['empresa']
     inlines = [DestinatarioInline]
 
     fieldsets = (
         ('Configuracion', {
-            'fields': ('tipo', 'activo', 'hora_envio', 'asunto_email')
+            'fields': ('tipo', 'empresa', 'activo', 'hora_envio', 'asunto_email')
         }),
         ('Opciones', {
             'fields': ('dia_envio_semanal', 'incluir_excel')
@@ -29,7 +30,7 @@ class ConfiguracionReporteAdmin(admin.ModelAdmin):
 
 @admin.register(LogReporte)
 class LogReporteAdmin(admin.ModelAdmin):
-    list_display = ('tipo_reporte', 'fecha_envio', 'fecha_inicio_rango', 'fecha_fin_rango', 'destinatarios_enviados', 'estado')
-    list_filter = ('tipo_reporte', 'estado', 'fecha_envio')
-    readonly_fields = ('tipo_reporte', 'fecha_inicio_rango', 'fecha_fin_rango', 'destinatarios_enviados', 'estado', 'error_detalle', 'fecha_envio')
+    list_display = ('tipo_reporte', 'empresa', 'fecha_envio', 'fecha_inicio_rango', 'fecha_fin_rango', 'destinatarios_enviados', 'estado')
+    list_filter = ('tipo_reporte', 'estado', 'empresa', 'fecha_envio')
+    readonly_fields = ('tipo_reporte', 'empresa', 'fecha_inicio_rango', 'fecha_fin_rango', 'destinatarios_enviados', 'estado', 'error_detalle', 'fecha_envio')
     date_hierarchy = 'fecha_envio'
