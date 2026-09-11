@@ -38,9 +38,13 @@ def login_view(request):
 
 def register_view(request):
     """Vista de registro de nuevos usuarios"""
+    from organizacion.models import Empresa
+
     if request.user.is_authenticated:
         return redirect('dashboard')
-    
+
+    empresas = Empresa.objects.filter(activo=True).order_by('nombre')
+
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
@@ -51,24 +55,30 @@ def register_view(request):
         codigo_empleado = request.POST.get('codigo_empleado')
         departamento = request.POST.get('departamento')
         puesto = request.POST.get('puesto')
-        
+        empresa_id = request.POST.get('empresa')
+
         # Validaciones
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden.')
-            return render(request, 'auth/register.html')
-        
+            return render(request, 'auth/register.html', {'empresas': empresas})
+
         if User.objects.filter(username=username).exists():
             messages.error(request, 'El nombre de usuario ya existe.')
-            return render(request, 'auth/register.html')
-        
+            return render(request, 'auth/register.html', {'empresas': empresas})
+
         if User.objects.filter(email=email).exists():
             messages.error(request, 'El correo electrónico ya está registrado.')
-            return render(request, 'auth/register.html')
-        
+            return render(request, 'auth/register.html', {'empresas': empresas})
+
         if Empleado.objects.filter(codigo_empleado=codigo_empleado).exists():
             messages.error(request, 'El código de empleado ya está en uso.')
-            return render(request, 'auth/register.html')
-        
+            return render(request, 'auth/register.html', {'empresas': empresas})
+
+        empresa = Empresa.objects.filter(pk=empresa_id, activo=True).first() if empresa_id else None
+        if not empresa:
+            messages.error(request, 'Selecciona una empresa válida.')
+            return render(request, 'auth/register.html', {'empresas': empresas})
+
         try:
             # Crear usuario
             user = User.objects.create_user(
@@ -78,27 +88,28 @@ def register_view(request):
                 first_name=first_name,
                 last_name=last_name
             )
-            
+
             # Crear empleado
             empleado = Empleado.objects.create(
                 user=user,
                 codigo_empleado=codigo_empleado,
                 departamento=departamento,
-                puesto=puesto or ''
+                puesto=puesto or '',
+                empresa=empresa
             )
-            
+
             messages.success(request, '¡Registro exitoso! Ahora registra tu rostro para completar tu perfil.')
-            
+
             # Iniciar sesión automáticamente
             login(request, user)
-            
+
             # Redirigir al registro de rostro
             return redirect('empleados:register_face', empleado_id=empleado.pk)
-            
+
         except Exception as e:
             messages.error(request, f'Error al crear la cuenta: {str(e)}')
-    
-    return render(request, 'auth/register.html')
+
+    return render(request, 'auth/register.html', {'empresas': empresas})
 
 
 def logout_view(request):
