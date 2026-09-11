@@ -26,7 +26,7 @@ _NOMBRES_ARCHIVO = {
 }
 
 
-def enviar_reporte(tipo_reporte, datos, destinatarios, archivo_excel=None, asunto_custom=None):
+def enviar_reporte(tipo_reporte, datos, destinatarios, archivo_excel=None, asunto_custom=None, empresa=None):
     """
     Envia reporte por email.
 
@@ -36,6 +36,8 @@ def enviar_reporte(tipo_reporte, datos, destinatarios, archivo_excel=None, asunt
         destinatarios: queryset o lista de objetos con atributo .email
         archivo_excel: BytesIO con archivo Excel (opcional)
         asunto_custom: asunto personalizado (opcional)
+        empresa: organizacion.models.Empresa opcional; si se da y no hay asunto_custom,
+                 su nombre se incluye en el asunto del correo
     """
     template = f'reportes/email/reporte_{tipo_reporte}.html'
     html_content = render_to_string(template, datos)
@@ -47,7 +49,10 @@ def enviar_reporte(tipo_reporte, datos, destinatarios, archivo_excel=None, asunt
         subject = asunto_custom
     else:
         periodo, categoria = _TIPOS_META.get(tipo_reporte, (tipo_reporte, tipo_reporte))
-        subject = f'Reporte {periodo} de {categoria} - {fecha_inicio} al {fecha_fin}'
+        if empresa is not None:
+            subject = f'Reporte {periodo} de {categoria} - {empresa.nombre} - {fecha_inicio} al {fecha_fin}'
+        else:
+            subject = f'Reporte {periodo} de {categoria} - {fecha_inicio} al {fecha_fin}'
 
     emails_to = [d.email for d in destinatarios]
     if not emails_to:

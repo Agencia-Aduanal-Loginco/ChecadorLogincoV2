@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -9,6 +10,7 @@ from empleados.models import Empleado
 from organizacion.models import Empresa
 from reportes.models import ConfiguracionReporte
 from reportes.services.calculos import obtener_datos_reporte
+from reportes.services.generador_email import enviar_reporte
 
 
 class ConfiguracionReporteEmpresaTests(TestCase):
@@ -81,3 +83,33 @@ class ObtenerDatosReporteEmpresaTests(TestCase):
         self.assertIn('CA001', codigos)
         self.assertNotIn('CB001', codigos)
         self.assertEqual(datos['empresa'], self.empresa_a)
+
+
+class _DestinatarioFake:
+    def __init__(self, email):
+        self.email = email
+
+
+class EnviarReporteEmpresaTests(TestCase):
+    def test_asunto_incluye_nombre_de_empresa(self):
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test.
+        empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        datos = {
+            'fecha_inicio': date(2026, 1, 1),
+            'fecha_fin': date(2026, 1, 1),
+            'empresa': empresa,
+            'datos_empleados': [],
+            'top_retardos': [],
+            'empleados_con_faltas': [],
+            'total_empleados': 0,
+            'total_registros': 0,
+            'dias_laborales': 0,
+        }
+
+        enviar_reporte('diario', datos, [_DestinatarioFake('rh@loginco.test')], empresa=empresa)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Loginco', mail.outbox[0].subject)
