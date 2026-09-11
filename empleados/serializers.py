@@ -22,7 +22,7 @@ class EmpleadoListSerializer(serializers.ModelSerializer):
         model = Empleado
         fields = (
             'id', 'codigo_empleado', 'user', 'nombre_completo',
-            'departamento', 'puesto', 'activo', 'tiene_rostro_registrado'
+            'empresa', 'departamento', 'puesto', 'activo', 'tiene_rostro_registrado'
         )
 
 
@@ -36,7 +36,7 @@ class EmpleadoDetailSerializer(serializers.ModelSerializer):
         model = Empleado
         fields = (
             'id', 'codigo_empleado', 'user', 'nombre_completo',
-            'foto_rostro', 'departamento', 'puesto', 'horas_semana',
+            'foto_rostro', 'empresa', 'departamento', 'puesto', 'horas_semana',
             'fecha_ingreso', 'activo', 'tiene_rostro_registrado',
             'horario_predeterminado', 'horario_sabado', 'descansa_sabado',
             'horario_domingo', 'descansa_domingo',
@@ -56,7 +56,7 @@ class EmpleadoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Empleado
         fields = (
-            'id', 'codigo_empleado', 'departamento', 'puesto',
+            'id', 'codigo_empleado', 'empresa', 'departamento', 'puesto',
             'horas_semana', 'fecha_ingreso', 'activo',
             'horario_predeterminado', 'horario_sabado', 'descansa_sabado',
             'horario_domingo', 'descansa_domingo',

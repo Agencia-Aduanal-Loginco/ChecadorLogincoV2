@@ -37,8 +37,6 @@ class Empleado(models.Model):
         'organizacion.Empresa',
         on_delete=models.PROTECT,
         related_name='empleados',
-        null=True,
-        blank=True,
         verbose_name='Empresa'
     )
     horas_semana = models.IntegerField(

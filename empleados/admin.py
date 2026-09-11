@@ -17,11 +17,11 @@ _CREDENCIAL_PASSWORD = 'Pa$$$Word2026'
 
 @admin.register(Empleado)
 class EmpleadoAdmin(admin.ModelAdmin):
-    list_display = ('codigo_empleado', 'get_nombre', 'departamento', 'puesto', 'activo', 'tiene_rostro_registrado', 'acciones_rostro')
-    list_filter = ('activo', 'departamento', 'fecha_ingreso', 'departamento_obj')
+    list_display = ('codigo_empleado', 'get_nombre', 'empresa', 'departamento', 'puesto', 'activo', 'tiene_rostro_registrado', 'acciones_rostro')
+    list_filter = ('activo', 'empresa', 'departamento', 'fecha_ingreso', 'departamento_obj')
     search_fields = ('codigo_empleado', 'user__username', 'user__first_name', 'user__last_name')
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion', 'tiene_rostro_registrado')
-    autocomplete_fields = ['departamento_obj', 'supervisor_directo']
+    autocomplete_fields = ['empresa', 'departamento_obj', 'supervisor_directo']
     actions = ['eliminar_rostros_seleccionados', 'enviar_credenciales']
 
     fieldsets = (
@@ -29,7 +29,7 @@ class EmpleadoAdmin(admin.ModelAdmin):
             'fields': ('user',)
         }),
         ('Informacion del Empleado', {
-            'fields': ('codigo_empleado', 'departamento', 'departamento_obj', 'supervisor_directo', 'puesto', 'horas_semana', 'fecha_ingreso')
+            'fields': ('empresa', 'codigo_empleado', 'departamento', 'departamento_obj', 'supervisor_directo', 'puesto', 'horas_semana', 'fecha_ingreso')
         }),
         ('Horarios Predeterminados', {
             'fields': ('horario_predeterminado', 'horario_sabado', 'descansa_sabado', 'horario_domingo', 'descansa_domingo'),
