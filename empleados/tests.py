@@ -81,3 +81,49 @@ class RegistroConEmpresaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Empleado.objects.filter(codigo_empleado='SE002').exists())
+
+
+from django.contrib.auth.models import User as AuthUser  # noqa: keep explicit for clarity in this block
+
+
+class EmpleadosListaEmpresaTests(TestCase):
+    def setUp(self):
+        self.staff = User.objects.create_user(username='staff1', password='x', is_staff=True)
+        # get_or_create: la migracion de backfill de Task 3 ya crea LOGINCO
+        # en la base de datos de test antes de setUp().
+        self.empresa_a, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        self.empresa_b = Empresa.objects.create(nombre='Otra SA', codigo='OTRA')
+
+        user_a = User.objects.create_user(username='lista_a', password='x')
+        self.empleado_a = Empleado.objects.create(
+            user=user_a, codigo_empleado='LA001', empresa=self.empresa_a
+        )
+        user_b = User.objects.create_user(username='lista_b', password='x')
+        self.empleado_b = Empleado.objects.create(
+            user=user_b, codigo_empleado='LB001', empresa=self.empresa_b
+        )
+
+    def test_sin_filtro_agrupa_por_empresa(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('empleados_lista'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['agrupar_por_empresa'])
+        empresas_en_grupos = [g['empresa'] for g in response.context['grupos']]
+        self.assertIn(self.empresa_a, empresas_en_grupos)
+        self.assertIn(self.empresa_b, empresas_en_grupos)
+
+    def test_filtrar_por_empresa_muestra_solo_esa_empresa(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('empleados_lista'), {'empresa': self.empresa_a.id})
+
+        self.assertFalse(response.context['agrupar_por_empresa'])
+        codigos = [
+            e.codigo_empleado
+            for grupo in response.context['grupos']
+            for e in grupo['empleados']
+        ]
+        self.assertIn('LA001', codigos)
+        self.assertNotIn('LB001', codigos)

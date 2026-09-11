@@ -206,12 +206,16 @@ def dashboard_view(request):
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def empleados_lista_view(request):
-    """Lista de empleados (solo para staff)"""
+    """Lista de empleados (solo para staff), agrupada por empresa"""
+    from itertools import groupby
+    from organizacion.models import Empresa
+
     search = request.GET.get('search', '')
     departamento = request.GET.get('departamento', '')
-    
-    empleados = Empleado.objects.select_related('user').filter(activo=True)
-    
+    empresa_id = request.GET.get('empresa', '')
+
+    empleados = Empleado.objects.select_related('user', 'empresa').filter(activo=True)
+
     if search:
         empleados = empleados.filter(
             Q(codigo_empleado__icontains=search) |
@@ -219,20 +223,35 @@ def empleados_lista_view(request):
             Q(user__last_name__icontains=search) |
             Q(user__username__icontains=search)
         )
-    
+
     if departamento:
         empleados = empleados.filter(departamento__icontains=departamento)
-    
+
+    if empresa_id:
+        empleados = empleados.filter(empresa_id=empresa_id)
+
+    empleados = empleados.order_by('empresa__nombre', 'codigo_empleado')
+
     # Obtener lista de departamentos para el filtro
     departamentos = Empleado.objects.filter(activo=True).values_list('departamento', flat=True).distinct()
-    
+    empresas = Empresa.objects.filter(activo=True).order_by('nombre')
+
+    agrupar_por_empresa = not empresa_id
+    grupos = [
+        {'empresa': empresa_obj, 'empleados': list(empleados_grupo)}
+        for empresa_obj, empleados_grupo in groupby(empleados, key=lambda e: e.empresa)
+    ]
+
     context = {
-        'empleados': empleados.order_by('codigo_empleado'),
+        'grupos': grupos,
+        'agrupar_por_empresa': agrupar_por_empresa,
         'departamentos': departamentos,
+        'empresas': empresas,
         'search': search,
         'departamento_selected': departamento,
+        'empresa_selected': empresa_id,
     }
-    
+
     return render(request, 'empleados/lista.html', context)
 
 
