@@ -1,10 +1,12 @@
 import io
 from datetime import date, datetime, time, timedelta
+from io import StringIO
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from PIL import Image
@@ -228,3 +230,46 @@ class MarcarAsistenciaTurnoNocturnoTests(TestCase):
         self.assertEqual(respuesta.status_code, 400)
         self.assertIn('turno nocturno sin cerrar', respuesta.json()['message'])
         self.assertEqual(RegistroAsistencia.objects.count(), 1)
+
+
+class DetectarIncidenciasNocturnoTests(TestCase):
+    def setUp(self):
+        self.empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        user = User.objects.create_user(username='noc_inc', password='x')
+        self.empleado = Empleado.objects.create(
+            user=user, codigo_empleado='NOC001', empresa=self.empresa
+        )
+        self.tipo_nocturno = TipoHorario.objects.create(
+            nombre='Turno Nocturno Incidencias', codigo='NOCINC',
+            hora_entrada=time(21, 0), hora_salida=time(7, 0),
+            cruza_medianoche=True, tolerancia_minutos=10, tiene_comida=False
+        )
+        self.fecha_entrada = date(2026, 9, 10)
+        AsignacionHorario.objects.create(
+            empleado=self.empleado, fecha=self.fecha_entrada, tipo_horario=self.tipo_nocturno
+        )
+        self.registro = RegistroAsistencia.objects.create(
+            empleado=self.empleado, fecha=self.fecha_entrada, hora_entrada=time(21, 5)
+        )
+
+    @patch('django.utils.timezone.now')
+    def test_no_marca_incidencia_si_turno_nocturno_sigue_en_curso(self, mock_now):
+        # Se ejecuta el comando a las 03:00 del día siguiente: la salida
+        # esperada es hasta las 07:00 + 10 min de tolerancia.
+        mock_now.return_value = datetime(2026, 9, 11, 3, 0, tzinfo=MEXICO_TZ_TEST)
+
+        call_command('detectar_incidencias', fecha=str(self.fecha_entrada), stdout=StringIO())
+
+        self.registro.refresh_from_db()
+        self.assertEqual(self.registro.incidencia, 'ninguna')
+
+    @patch('django.utils.timezone.now')
+    def test_marca_sin_salida_si_ya_paso_la_hora_esperada_mas_tolerancia(self, mock_now):
+        mock_now.return_value = datetime(2026, 9, 11, 7, 30, tzinfo=MEXICO_TZ_TEST)
+
+        call_command('detectar_incidencias', fecha=str(self.fecha_entrada), stdout=StringIO())
+
+        self.registro.refresh_from_db()
+        self.assertEqual(self.registro.incidencia, 'sin_salida')

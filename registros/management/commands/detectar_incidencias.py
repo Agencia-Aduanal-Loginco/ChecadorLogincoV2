@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
-from zoneinfo import ZoneInfo
+
+from horarios.services import obtener_horario_del_dia
 from registros.models import RegistroAsistencia
 
 MEXICO_TZ = ZoneInfo('America/Mexico_City')
@@ -18,26 +21,31 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # Determinar fecha a revisar
+        ahora_mexico = timezone.now().astimezone(MEXICO_TZ)
+
         if options['fecha']:
-            from datetime import datetime
             fecha_revisar = datetime.strptime(options['fecha'], '%Y-%m-%d').date()
         else:
-            # Día anterior en zona horaria de México
-            ahora_mexico = timezone.now().astimezone(MEXICO_TZ)
             fecha_revisar = (ahora_mexico - timedelta(days=1)).date()
 
         self.stdout.write(f"Revisando registros del día: {fecha_revisar}")
 
-        # Obtener todos los registros del día
         registros = RegistroAsistencia.objects.filter(fecha=fecha_revisar)
-        
+
         total_registros = registros.count()
         registros_con_incidencia = 0
         registros_completos = 0
+        registros_nocturnos_en_curso = 0
 
         for registro in registros:
-            # Calcular incidencias
+            if self._es_turno_nocturno_en_curso(registro, ahora_mexico):
+                registros_nocturnos_en_curso += 1
+                self.stdout.write(
+                    f"  🌙 {registro.empleado.codigo_empleado}: turno nocturno aún en "
+                    "curso, se revisará más tarde"
+                )
+                continue
+
             registro.calcular_incidencias()
             registro.save()
 
@@ -56,11 +64,31 @@ class Command(BaseCommand):
         self.stdout.write("\n" + "="*60)
         self.stdout.write(f"Total de registros revisados: {total_registros}")
         self.stdout.write(self.style.SUCCESS(f"✓ Registros completos: {registros_completos}"))
-        
+
+        if registros_nocturnos_en_curso:
+            self.stdout.write(f"🌙 Turnos nocturnos aún en curso: {registros_nocturnos_en_curso}")
+
         if registros_con_incidencia > 0:
             self.stdout.write(self.style.ERROR(f"✗ Registros con incidencia: {registros_con_incidencia}"))
         else:
             self.stdout.write(self.style.SUCCESS("✓ No se encontraron incidencias"))
-        
+
         self.stdout.write("="*60)
         self.stdout.write(self.style.SUCCESS(f"\n✓ Proceso completado exitosamente"))
+
+    def _es_turno_nocturno_en_curso(self, registro, ahora_mexico):
+        """True si el registro es un turno nocturno que aún no debería haber cerrado."""
+        if not registro.hora_entrada or registro.hora_salida:
+            return False
+
+        horario_info = obtener_horario_del_dia(registro.empleado, registro.fecha)
+        if not horario_info or not getattr(horario_info['objeto'], 'cruza_medianoche', False):
+            return False
+
+        hora_salida_esperada = datetime.combine(
+            registro.fecha + timedelta(days=1),
+            horario_info['hora_salida'],
+            tzinfo=MEXICO_TZ
+        )
+        limite = hora_salida_esperada + timedelta(minutes=horario_info['tolerancia_minutos'])
+        return ahora_mexico < limite
