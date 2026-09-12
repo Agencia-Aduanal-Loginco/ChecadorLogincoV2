@@ -8,11 +8,36 @@ class TipoHorarioSerializer(serializers.ModelSerializer):
         model = TipoHorario
         fields = (
             'id', 'nombre', 'codigo', 'descripcion', 'color',
-            'hora_entrada', 'hora_salida', 'tolerancia_minutos',
+            'hora_entrada', 'hora_salida', 'cruza_medianoche', 'tolerancia_minutos',
             'tiene_comida', 'hora_inicio_comida', 'hora_fin_comida',
             'activo', 'fecha_creacion', 'fecha_actualizacion'
         )
         read_only_fields = ('id', 'fecha_creacion', 'fecha_actualizacion')
+
+    def validate(self, attrs):
+        hora_entrada = attrs.get('hora_entrada', getattr(self.instance, 'hora_entrada', None))
+        hora_salida = attrs.get('hora_salida', getattr(self.instance, 'hora_salida', None))
+        cruza_medianoche = attrs.get(
+            'cruza_medianoche', getattr(self.instance, 'cruza_medianoche', False)
+        )
+
+        if hora_entrada and hora_salida:
+            cruza = hora_salida <= hora_entrada
+            if cruza and not cruza_medianoche:
+                raise serializers.ValidationError({
+                    'hora_salida': (
+                        'La hora de salida debe ser posterior a la hora de entrada, '
+                        'o activa "cruza_medianoche" si el turno termina al día siguiente.'
+                    )
+                })
+            if not cruza and cruza_medianoche:
+                raise serializers.ValidationError({
+                    'cruza_medianoche': (
+                        'El turno no cruza medianoche según las horas capturadas; '
+                        'desactiva esta opción.'
+                    )
+                })
+        return attrs
 
 
 class AsignacionHorarioSerializer(serializers.ModelSerializer):
