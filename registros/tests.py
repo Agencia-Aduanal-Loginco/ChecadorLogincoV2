@@ -1,14 +1,22 @@
-from datetime import date, time, timedelta
+import io
+from datetime import date, datetime, time, timedelta
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from PIL import Image
+from rest_framework.test import APIClient
 
 from empleados.models import Empleado
 from horarios.models import AsignacionHorario, TipoHorario
 from organizacion.models import Empresa
 from registros.models import RegistroAsistencia
 from registros.services.turnos import obtener_registro_activo
+
+MEXICO_TZ_TEST = ZoneInfo('America/Mexico_City')
 
 
 class FacialRecognitionComidaTemplateTests(TestCase):
@@ -118,3 +126,105 @@ class ObtenerRegistroActivoTests(TestCase):
 
         self.assertIsNone(registro)
         self.assertFalse(pendiente)
+
+
+def _dummy_foto():
+    buffer = io.BytesIO()
+    Image.new('RGB', (10, 10), color='white').save(buffer, format='JPEG')
+    buffer.seek(0)
+    return SimpleUploadedFile('foto.jpg', buffer.read(), content_type='image/jpeg')
+
+
+class MarcarAsistenciaTurnoNocturnoTests(TestCase):
+    def setUp(self):
+        self.empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        user = User.objects.create_user(username='hotel_noc', password='x')
+        self.empleado = Empleado.objects.create(
+            user=user, codigo_empleado='HOT001', empresa=self.empresa
+        )
+        self.tipo_nocturno = TipoHorario.objects.create(
+            nombre='Turno Nocturno Hotel', codigo='HOTNOC',
+            hora_entrada=time(21, 0), hora_salida=time(7, 0),
+            cruza_medianoche=True, tolerancia_minutos=10, tiene_comida=False
+        )
+        self.dia_1 = date(2026, 9, 10)
+        self.dia_2 = date(2026, 9, 11)
+        AsignacionHorario.objects.create(
+            empleado=self.empleado, fecha=self.dia_1, tipo_horario=self.tipo_nocturno
+        )
+        AsignacionHorario.objects.create(
+            empleado=self.empleado, fecha=self.dia_2, tipo_horario=self.tipo_nocturno
+        )
+        self.client = APIClient()
+
+        # MediaStorage siempre usa S3Boto3Storage (DigitalOcean Spaces); en un
+        # entorno de pruebas sin credenciales configuradas, save/exists/url
+        # intentarían llamadas de red reales. Se reemplazan por versiones
+        # inertes sólo para este test.
+        save_patcher = patch(
+            'checador.storage_backends.MediaStorage._save',
+            side_effect=lambda name, content: name
+        )
+        exists_patcher = patch(
+            'checador.storage_backends.MediaStorage.exists', return_value=False
+        )
+        url_patcher = patch(
+            'checador.storage_backends.MediaStorage.url',
+            return_value='https://example.com/fake.jpg'
+        )
+        for patcher in (save_patcher, exists_patcher, url_patcher):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    @patch('registros.views.FacialRecognitionService.recognize_employee')
+    @patch('registros.views.FacialRecognitionService.load_image_from_file')
+    @patch('django.utils.timezone.now')
+    def test_entrada_y_salida_de_turno_nocturno_quedan_en_un_solo_registro(
+        self, mock_now, mock_load, mock_recognize
+    ):
+        mock_load.return_value = 'imagen-simulada'
+        mock_recognize.return_value = (self.empleado, 98.5, 'ok')
+
+        mock_now.return_value = datetime(2026, 9, 10, 21, 5, tzinfo=MEXICO_TZ_TEST)
+        respuesta_entrada = self.client.post('/api/registros/marcar_entrada/', {
+            'foto': _dummy_foto(), 'tipo': 'entrada'
+        }, format='multipart')
+        self.assertEqual(respuesta_entrada.status_code, 200, respuesta_entrada.content)
+
+        mock_now.return_value = datetime(2026, 9, 11, 7, 10, tzinfo=MEXICO_TZ_TEST)
+        respuesta_salida = self.client.post('/api/registros/marcar_salida/', {
+            'foto': _dummy_foto(), 'tipo': 'salida'
+        }, format='multipart')
+        self.assertEqual(respuesta_salida.status_code, 200, respuesta_salida.content)
+
+        self.assertEqual(RegistroAsistencia.objects.count(), 1)
+        registro = RegistroAsistencia.objects.get()
+        self.assertEqual(registro.fecha, self.dia_1)
+        self.assertEqual(registro.hora_entrada, time(21, 5))
+        self.assertEqual(registro.hora_salida, time(7, 10))
+        self.assertAlmostEqual(registro.horas_trabajadas, 10 + 5 / 60, places=2)
+
+    @patch('registros.views.FacialRecognitionService.recognize_employee')
+    @patch('registros.views.FacialRecognitionService.load_image_from_file')
+    @patch('django.utils.timezone.now')
+    def test_no_permite_marcar_nueva_entrada_con_turno_nocturno_sin_cerrar(
+        self, mock_now, mock_load, mock_recognize
+    ):
+        mock_load.return_value = 'imagen-simulada'
+        mock_recognize.return_value = (self.empleado, 98.5, 'ok')
+
+        mock_now.return_value = datetime(2026, 9, 10, 21, 5, tzinfo=MEXICO_TZ_TEST)
+        self.client.post('/api/registros/marcar_entrada/', {
+            'foto': _dummy_foto(), 'tipo': 'entrada'
+        }, format='multipart')
+
+        mock_now.return_value = datetime(2026, 9, 11, 8, 0, tzinfo=MEXICO_TZ_TEST)
+        respuesta = self.client.post('/api/registros/marcar_entrada/', {
+            'foto': _dummy_foto(), 'tipo': 'entrada'
+        }, format='multipart')
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn('turno nocturno sin cerrar', respuesta.json()['message'])
+        self.assertEqual(RegistroAsistencia.objects.count(), 1)

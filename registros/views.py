@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from .models import RegistroAsistencia
 from empleados.models import Empleado
 from .services import FacialRecognitionService
+from .services.turnos import obtener_registro_activo
 from .serializers import (
     RegistroAsistenciaSerializer,
     VerificarRostroSerializer,
@@ -94,16 +95,16 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
         ahora_mexico = timezone.now().astimezone(MEXICO_TZ)
         hoy = ahora_mexico.date()
         hora_actual = ahora_mexico.time()
-        
-        # Obtener o crear registro del día
-        registro, created = RegistroAsistencia.objects.get_or_create(
-            empleado=empleado,
-            fecha=hoy
-        )
-        
+
+        # Obtener el registro activo: el de hoy, o el de ayer si hay un
+        # turno nocturno todavía sin cerrar
+        registro, _es_nocturno_pendiente = obtener_registro_activo(empleado, hoy)
+        if registro is None:
+            registro = RegistroAsistencia.objects.create(empleado=empleado, fecha=hoy)
+
         # Obtener horario del dia usando el nuevo servicio
         from horarios.services import obtener_horario_del_dia
-        horario_data = obtener_horario_del_dia(empleado, hoy)
+        horario_data = obtener_horario_del_dia(empleado, registro.fecha)
 
         # Obtener botones disponibles
         botones_disponibles = registro.obtener_botones_disponibles(hora_actual)
@@ -200,21 +201,32 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
                 'message': mensaje
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Obtener o crear registro del día (usando hora de México)
+        # Obtener el registro activo (usando hora de México): el de hoy,
+        # o el de ayer si hay un turno nocturno todavía sin cerrar
         ahora_mexico = timezone.now().astimezone(MEXICO_TZ)
         hoy = ahora_mexico.date()
-        registro, created = RegistroAsistencia.objects.get_or_create(
-            empleado=empleado,
-            fecha=hoy,
-            defaults={
-                'reconocimiento_facial': True,
-                'confianza_reconocimiento': confianza,
-                'latitud': latitud,
-                'longitud': longitud,
-                'ubicacion': ubicacion
-            }
-        )
-        
+        registro, es_nocturno_pendiente = obtener_registro_activo(empleado, hoy)
+
+        if tipo == 'entrada' and es_nocturno_pendiente:
+            return Response({
+                'success': False,
+                'message': (
+                    f'Tienes un turno nocturno sin cerrar del {registro.fecha}, '
+                    'marca tu salida primero'
+                )
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if registro is None:
+            registro = RegistroAsistencia.objects.create(
+                empleado=empleado,
+                fecha=hoy,
+                reconocimiento_facial=True,
+                confianza_reconocimiento=confianza,
+                latitud=latitud,
+                longitud=longitud,
+                ubicacion=ubicacion
+            )
+
         # Actualizar según el tipo (hora de México)
         ahora = ahora_mexico.time()
         
