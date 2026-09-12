@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db import IntegrityError
 from django.utils import timezone
 from datetime import datetime, date, time
 from zoneinfo import ZoneInfo
@@ -100,7 +101,10 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
         # turno nocturno todavía sin cerrar
         registro, _es_nocturno_pendiente = obtener_registro_activo(empleado, hoy)
         if registro is None:
-            registro = RegistroAsistencia.objects.create(empleado=empleado, fecha=hoy)
+            try:
+                registro = RegistroAsistencia.objects.create(empleado=empleado, fecha=hoy)
+            except IntegrityError:
+                registro = RegistroAsistencia.objects.get(empleado=empleado, fecha=hoy)
 
         # Obtener horario del dia usando el nuevo servicio
         from horarios.services import obtener_horario_del_dia
@@ -217,15 +221,18 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         if registro is None:
-            registro = RegistroAsistencia.objects.create(
-                empleado=empleado,
-                fecha=hoy,
-                reconocimiento_facial=True,
-                confianza_reconocimiento=confianza,
-                latitud=latitud,
-                longitud=longitud,
-                ubicacion=ubicacion
-            )
+            try:
+                registro = RegistroAsistencia.objects.create(
+                    empleado=empleado,
+                    fecha=hoy,
+                    reconocimiento_facial=True,
+                    confianza_reconocimiento=confianza,
+                    latitud=latitud,
+                    longitud=longitud,
+                    ubicacion=ubicacion
+                )
+            except IntegrityError:
+                registro = RegistroAsistencia.objects.get(empleado=empleado, fecha=hoy)
 
         # Actualizar según el tipo (hora de México)
         ahora = ahora_mexico.time()
