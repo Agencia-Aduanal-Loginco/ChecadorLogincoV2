@@ -232,6 +232,90 @@ class MarcarAsistenciaTurnoNocturnoTests(TestCase):
         self.assertEqual(RegistroAsistencia.objects.count(), 1)
 
 
+class MarcarAsistenciaTurnoNocturnoConComidaTests(TestCase):
+    """Caso real del hotel: turno nocturno con comida que también cruza medianoche."""
+
+    def setUp(self):
+        self.empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        user = User.objects.create_user(username='hotel_noc_comida', password='x')
+        self.empleado = Empleado.objects.create(
+            user=user, codigo_empleado='HOTC001', empresa=self.empresa
+        )
+        self.tipo_nocturno_comida = TipoHorario.objects.create(
+            nombre='Turno Nocturno Hotel Comida', codigo='HOTNOCCOM',
+            hora_entrada=time(21, 0), hora_salida=time(7, 0),
+            cruza_medianoche=True, tolerancia_minutos=10, tiene_comida=True,
+            hora_inicio_comida=time(23, 0), hora_fin_comida=time(1, 0)
+        )
+        self.dia_1 = date(2026, 9, 10)
+        self.dia_2 = date(2026, 9, 11)
+        AsignacionHorario.objects.create(
+            empleado=self.empleado, fecha=self.dia_1, tipo_horario=self.tipo_nocturno_comida
+        )
+        AsignacionHorario.objects.create(
+            empleado=self.empleado, fecha=self.dia_2, tipo_horario=self.tipo_nocturno_comida
+        )
+        self.client = APIClient()
+
+        save_patcher = patch(
+            'checador.storage_backends.MediaStorage._save',
+            side_effect=lambda name, content: name
+        )
+        exists_patcher = patch(
+            'checador.storage_backends.MediaStorage.exists', return_value=False
+        )
+        url_patcher = patch(
+            'checador.storage_backends.MediaStorage.url',
+            return_value='https://example.com/fake.jpg'
+        )
+        for patcher in (save_patcher, exists_patcher, url_patcher):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    @patch('registros.views.FacialRecognitionService.recognize_employee')
+    @patch('registros.views.FacialRecognitionService.load_image_from_file')
+    @patch('django.utils.timezone.now')
+    def test_comida_que_cruza_medianoche_queda_en_el_mismo_registro_nocturno(
+        self, mock_now, mock_load, mock_recognize
+    ):
+        mock_load.return_value = 'imagen-simulada'
+        mock_recognize.return_value = (self.empleado, 98.5, 'ok')
+
+        mock_now.return_value = datetime(2026, 9, 10, 21, 5, tzinfo=MEXICO_TZ_TEST)
+        respuesta_entrada = self.client.post('/api/registros/marcar_entrada/', {
+            'foto': _dummy_foto(), 'tipo': 'entrada'
+        }, format='multipart')
+        self.assertEqual(respuesta_entrada.status_code, 200, respuesta_entrada.content)
+
+        # Salida a comer antes de medianoche, dentro de la ventana 23:00-01:00.
+        mock_now.return_value = datetime(2026, 9, 10, 23, 30, tzinfo=MEXICO_TZ_TEST)
+        respuesta_salida_comida = self.client.post('/api/registros/marcar_salida_comida/', {
+            'foto': _dummy_foto(), 'tipo': 'salida_comida'
+        }, format='multipart')
+        self.assertEqual(
+            respuesta_salida_comida.status_code, 200, respuesta_salida_comida.content
+        )
+        self.assertEqual(RegistroAsistencia.objects.count(), 1)
+
+        # Regreso de comer después de medianoche, todavía dentro de la
+        # ventana de comida (que también cruza medianoche).
+        mock_now.return_value = datetime(2026, 9, 11, 0, 15, tzinfo=MEXICO_TZ_TEST)
+        respuesta_entrada_comida = self.client.post('/api/registros/marcar_entrada_comida/', {
+            'foto': _dummy_foto(), 'tipo': 'entrada_comida'
+        }, format='multipart')
+        self.assertEqual(
+            respuesta_entrada_comida.status_code, 200, respuesta_entrada_comida.content
+        )
+
+        self.assertEqual(RegistroAsistencia.objects.count(), 1)
+        registro = RegistroAsistencia.objects.get()
+        self.assertEqual(registro.fecha, self.dia_1)
+        self.assertEqual(registro.hora_salida_comida, time(23, 30))
+        self.assertEqual(registro.hora_entrada_comida, time(0, 15))
+
+
 class VerificarRostroTurnoNocturnoTests(TestCase):
     def setUp(self):
         self.empresa, _ = Empresa.objects.get_or_create(
