@@ -232,6 +232,62 @@ class MarcarAsistenciaTurnoNocturnoTests(TestCase):
         self.assertEqual(RegistroAsistencia.objects.count(), 1)
 
 
+class VerificarRostroTurnoNocturnoTests(TestCase):
+    def setUp(self):
+        self.empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        user = User.objects.create_user(username='hotel_verif_noc', password='x')
+        self.empleado = Empleado.objects.create(
+            user=user, codigo_empleado='HOTV001', empresa=self.empresa
+        )
+        self.tipo_nocturno = TipoHorario.objects.create(
+            nombre='Turno Nocturno Verif', codigo='HOTVNOC',
+            hora_entrada=time(21, 0), hora_salida=time(7, 0),
+            cruza_medianoche=True, tolerancia_minutos=10, tiene_comida=False
+        )
+        self.dia_1 = date(2026, 9, 10)
+        AsignacionHorario.objects.create(
+            empleado=self.empleado, fecha=self.dia_1, tipo_horario=self.tipo_nocturno
+        )
+        RegistroAsistencia.objects.create(
+            empleado=self.empleado, fecha=self.dia_1, hora_entrada=time(21, 5)
+        )
+        self.client = APIClient()
+
+        save_patcher = patch(
+            'checador.storage_backends.MediaStorage._save',
+            side_effect=lambda name, content: name
+        )
+        exists_patcher = patch(
+            'checador.storage_backends.MediaStorage.exists', return_value=False
+        )
+        url_patcher = patch(
+            'checador.storage_backends.MediaStorage.url',
+            return_value='https://example.com/fake.jpg'
+        )
+        for patcher in (save_patcher, exists_patcher, url_patcher):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    @patch('registros.views.FacialRecognitionService.recognize_employee')
+    @patch('registros.views.FacialRecognitionService.load_image_from_file')
+    @patch('django.utils.timezone.now')
+    def test_botones_disponibles_muestra_salida_cuando_turno_nocturno_esta_abierto(
+        self, mock_now, mock_load, mock_recognize
+    ):
+        mock_load.return_value = 'imagen-simulada'
+        mock_recognize.return_value = (self.empleado, 98.5, 'ok')
+        mock_now.return_value = datetime(2026, 9, 11, 6, 0, tzinfo=MEXICO_TZ_TEST)
+
+        respuesta = self.client.post('/api/registros/verificar_rostro/', {
+            'foto': _dummy_foto()
+        }, format='multipart')
+
+        self.assertEqual(respuesta.status_code, 200, respuesta.content)
+        self.assertEqual(respuesta.json()['botones_disponibles'], ['salida'])
+
+
 class DetectarIncidenciasNocturnoTests(TestCase):
     def setUp(self):
         self.empresa, _ = Empresa.objects.get_or_create(
