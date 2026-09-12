@@ -74,7 +74,11 @@ def register_view(request):
             messages.error(request, 'El código de empleado ya está en uso.')
             return render(request, 'auth/register.html', {'empresas': empresas})
 
-        empresa = Empresa.objects.filter(pk=empresa_id, activo=True).first() if empresa_id else None
+        empresa = (
+            Empresa.objects.filter(pk=empresa_id, activo=True).first()
+            if empresa_id and str(empresa_id).isdigit()
+            else None
+        )
         if not empresa:
             messages.error(request, 'Selecciona una empresa válida.')
             return render(request, 'auth/register.html', {'empresas': empresas})
@@ -227,7 +231,7 @@ def empleados_lista_view(request):
     if departamento:
         empleados = empleados.filter(departamento__icontains=departamento)
 
-    if empresa_id:
+    if empresa_id and str(empresa_id).isdigit():
         empleados = empleados.filter(empresa_id=empresa_id)
 
     empleados = empleados.order_by('empresa__nombre', 'codigo_empleado')

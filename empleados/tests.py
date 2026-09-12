@@ -82,8 +82,22 @@ class RegistroConEmpresaTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Empleado.objects.filter(codigo_empleado='SE002').exists())
 
+    def test_registro_con_empresa_no_numerica_no_causa_error_500(self):
+        response = self.client.post(reverse('register'), {
+            'username': 'garbage_empresa',
+            'email': 'garbage@example.com',
+            'password': 'ClaveSegura123',
+            'password_confirm': 'ClaveSegura123',
+            'first_name': 'Garbage',
+            'last_name': 'Empresa',
+            'codigo_empleado': 'GE001',
+            'departamento': 'Ventas',
+            'puesto': '',
+            'empresa': 'abc',
+        })
 
-from django.contrib.auth.models import User as AuthUser  # noqa: keep explicit for clarity in this block
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Empleado.objects.filter(codigo_empleado='GE001').exists())
 
 
 class EmpleadosListaEmpresaTests(TestCase):
@@ -127,3 +141,9 @@ class EmpleadosListaEmpresaTests(TestCase):
         ]
         self.assertIn('LA001', codigos)
         self.assertNotIn('LB001', codigos)
+
+    def test_filtro_empresa_no_numerico_no_causa_error_500(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('empleados_lista'), {'empresa': 'abc'})
+
+        self.assertEqual(response.status_code, 200)
