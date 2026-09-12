@@ -1,10 +1,13 @@
 from datetime import time
 
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from horarios.models import TipoHorario
+from empleados.models import Empleado
+from horarios.models import TipoHorario, Horario
 from horarios.serializers import TipoHorarioSerializer
+from organizacion.models import Empresa
 
 
 class TipoHorarioCruzaMedianocheTests(TestCase):
@@ -66,3 +69,49 @@ class TipoHorarioSerializerCruzaMedianocheTests(TestCase):
         serializer = TipoHorarioSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn('hora_salida', serializer.errors)
+
+
+class EstaEnHorarioComidaWraparoundTests(TestCase):
+    def test_tipohorario_comida_que_cruza_medianoche_dentro_del_rango(self):
+        tipo = TipoHorario.objects.create(
+            nombre='Turno Nocturno Comida', codigo='NOCCOM',
+            hora_entrada=time(21, 0), hora_salida=time(7, 0), cruza_medianoche=True,
+            tiene_comida=True, hora_inicio_comida=time(1, 0), hora_fin_comida=time(1, 30)
+        )
+        self.assertTrue(tipo.esta_en_horario_comida(time(1, 15)))
+
+    def test_tipohorario_comida_que_cruza_medianoche_fuera_del_rango(self):
+        tipo = TipoHorario.objects.create(
+            nombre='Turno Nocturno Comida 2', codigo='NOCCOM2',
+            hora_entrada=time(21, 0), hora_salida=time(7, 0), cruza_medianoche=True,
+            tiene_comida=True, hora_inicio_comida=time(1, 0), hora_fin_comida=time(1, 30)
+        )
+        self.assertFalse(tipo.esta_en_horario_comida(time(12, 0)))
+
+
+class HorarioComidaWraparoundTests(TestCase):
+    def setUp(self):
+        self.empresa, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        user = User.objects.create_user(username='horario_comida', password='x')
+        self.empleado = Empleado.objects.create(
+            user=user, codigo_empleado='HC001', empresa=self.empresa
+        )
+
+    def test_horario_comida_que_cruza_medianoche_dentro_del_rango(self):
+        horario = Horario.objects.create(
+            empleado=self.empleado, dia_semana=1,
+            hora_entrada=time(8, 0), hora_salida=time(17, 0),
+            tiene_comida=True, hora_inicio_comida=time(23, 30), hora_fin_comida=time(0, 30)
+        )
+        self.assertTrue(horario.esta_en_horario_comida(time(23, 45)))
+        self.assertTrue(horario.esta_en_horario_comida(time(0, 15)))
+
+    def test_horario_comida_que_cruza_medianoche_fuera_del_rango(self):
+        horario = Horario.objects.create(
+            empleado=self.empleado, dia_semana=1,
+            hora_entrada=time(8, 0), hora_salida=time(17, 0),
+            tiene_comida=True, hora_inicio_comida=time(23, 30), hora_fin_comida=time(0, 30)
+        )
+        self.assertFalse(horario.esta_en_horario_comida(time(12, 0)))

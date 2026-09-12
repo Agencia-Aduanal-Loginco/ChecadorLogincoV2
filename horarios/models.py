@@ -67,7 +67,10 @@ class TipoHorario(models.Model):
     def esta_en_horario_comida(self, hora_actual):
         if not self.tiene_comida or not self.hora_inicio_comida or not self.hora_fin_comida:
             return False
-        return self.hora_inicio_comida <= hora_actual <= self.hora_fin_comida
+        if self.hora_inicio_comida <= self.hora_fin_comida:
+            return self.hora_inicio_comida <= hora_actual <= self.hora_fin_comida
+        # La comida cruza medianoche (ej. 01:00 - 01:30 en un turno nocturno)
+        return hora_actual >= self.hora_inicio_comida or hora_actual <= self.hora_fin_comida
 
 
 class AsignacionHorario(models.Model):
@@ -186,7 +189,10 @@ class Horario(models.Model):
         """Verifica si la hora actual está dentro del horario de comida"""
         if not self.tiene_comida or not self.hora_inicio_comida or not self.hora_fin_comida:
             return False
-        return self.hora_inicio_comida <= hora_actual <= self.hora_fin_comida
+        if self.hora_inicio_comida <= self.hora_fin_comida:
+            return self.hora_inicio_comida <= hora_actual <= self.hora_fin_comida
+        # La comida cruza medianoche
+        return hora_actual >= self.hora_inicio_comida or hora_actual <= self.hora_fin_comida
     
     @property
     def horas_dia(self):
