@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 from django.utils import timezone
 
 from horarios.services import obtener_horario_del_dia
@@ -30,7 +31,15 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Revisando registros del día: {fecha_revisar}")
 
-        registros = RegistroAsistencia.objects.filter(fecha=fecha_revisar)
+        registros = RegistroAsistencia.objects.filter(
+            Q(fecha=fecha_revisar) |
+            Q(
+                fecha__lt=fecha_revisar,
+                hora_entrada__isnull=False,
+                hora_salida__isnull=True,
+                incidencia='ninguna',
+            )
+        )
 
         total_registros = registros.count()
         registros_con_incidencia = 0

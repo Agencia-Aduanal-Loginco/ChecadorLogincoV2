@@ -273,3 +273,29 @@ class DetectarIncidenciasNocturnoTests(TestCase):
 
         self.registro.refresh_from_db()
         self.assertEqual(self.registro.incidencia, 'sin_salida')
+
+    @patch('django.utils.timezone.now')
+    def test_re_revisa_turno_nocturno_previamente_omitido_de_dias_anteriores(self, mock_now):
+        # El registro nocturno queda abierto varios días antes de "ahora", de
+        # forma que una corrida sin --fecha (que revisa "ayer") jamás lo
+        # tocaría si sólo se filtrara por fecha_revisar. Debe ser recogido
+        # por el segundo Q() (registros viejos, abiertos y sin incidencia)
+        # y finalmente marcarse sin_salida por estar muy vencido.
+        # "Ahora" muy posterior a la fecha vieja: el comando sin --fecha
+        # revisará "ayer" relativo a esta fecha, que no coincide con
+        # fecha_vieja en absoluto.
+        mock_now.return_value = datetime(2026, 9, 10, 12, 0, tzinfo=MEXICO_TZ_TEST)
+
+        fecha_vieja = date(2026, 9, 1)
+        self.registro.fecha = fecha_vieja
+        self.registro.save()
+
+        AsignacionHorario.objects.create(
+            empleado=self.empleado, fecha=fecha_vieja, tipo_horario=self.tipo_nocturno
+        )
+
+        call_command('detectar_incidencias', stdout=StringIO())
+
+        self.registro.refresh_from_db()
+        self.assertEqual(self.registro.fecha, fecha_vieja)
+        self.assertEqual(self.registro.incidencia, 'sin_salida')
