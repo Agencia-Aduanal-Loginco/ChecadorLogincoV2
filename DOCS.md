@@ -487,10 +487,12 @@ python manage.py scheduler start
 
 ### Enviar reporte manual
 ```bash
-python manage.py enviar_reporte diario
-python manage.py enviar_reporte semanal
-python manage.py enviar_reporte quincenal
-python manage.py enviar_reporte diario --email test@example.com
+# --empresa (codigo) es obligatorio para diario/semanal/quincenal, ya que
+# cada empresa tiene su propia configuracion y destinatarios
+python manage.py enviar_reporte diario --empresa LOGINCO
+python manage.py enviar_reporte semanal --empresa LOGINCO
+python manage.py enviar_reporte quincenal --empresa LOGINCO
+python manage.py enviar_reporte diario --empresa LOGINCO --email test@example.com
 ```
 
 ## Monitoreo
@@ -538,7 +540,7 @@ Reiniciar Django después del cambio.
 
 ```bash
 # Opción 1: Comando manual
-python manage.py enviar_reporte diario
+python manage.py enviar_reporte diario --empresa LOGINCO
 
 # Opción 2: Python shell
 python manage.py shell

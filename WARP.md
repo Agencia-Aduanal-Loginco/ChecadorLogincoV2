@@ -91,9 +91,10 @@ python manage.py scheduler list
 python manage.py scheduler list --limit 20
 
 # Enviar reporte manual (comando existente)
-python manage.py enviar_reporte diario
-python manage.py enviar_reporte semanal
-python manage.py enviar_reporte quincenal
+# --empresa es obligatorio para diario/semanal/quincenal (uno por empresa)
+python manage.py enviar_reporte diario --empresa LOGINCO
+python manage.py enviar_reporte semanal --empresa LOGINCO
+python manage.py enviar_reporte quincenal --empresa LOGINCO
 ```
 
 ## Architecture
