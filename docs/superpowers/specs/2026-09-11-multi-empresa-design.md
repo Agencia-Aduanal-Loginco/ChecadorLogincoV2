@@ -40,6 +40,10 @@ usará también para otras empresas, compartiendo la misma instalación. Se nece
   `Departamento`. No se resuelve en este trabajo.
 - Reportes de `permisos`, `tickets_it` e `inventario`.
 - Branding (logo, colores) por empresa en los reportes.
+- Restringir el auto-registro público (`/register/`). Ya era abierto (cualquier
+  visitante podía crearse como empleado) antes de este trabajo; ahora esa
+  misma persona también elige su empresa. Se decidió explícitamente (con el
+  usuario) dejarlo así por ahora — es una limitación conocida, no un defecto.
 - Checadores/URLs separados por empresa.
 
 ## Diseño
