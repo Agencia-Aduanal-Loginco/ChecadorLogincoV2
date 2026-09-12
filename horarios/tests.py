@@ -76,15 +76,16 @@ class EstaEnHorarioComidaWraparoundTests(TestCase):
         tipo = TipoHorario.objects.create(
             nombre='Turno Nocturno Comida', codigo='NOCCOM',
             hora_entrada=time(21, 0), hora_salida=time(7, 0), cruza_medianoche=True,
-            tiene_comida=True, hora_inicio_comida=time(1, 0), hora_fin_comida=time(1, 30)
+            tiene_comida=True, hora_inicio_comida=time(23, 0), hora_fin_comida=time(1, 0)
         )
-        self.assertTrue(tipo.esta_en_horario_comida(time(1, 15)))
+        self.assertTrue(tipo.esta_en_horario_comida(time(23, 30)))
+        self.assertTrue(tipo.esta_en_horario_comida(time(0, 30)))
 
     def test_tipohorario_comida_que_cruza_medianoche_fuera_del_rango(self):
         tipo = TipoHorario.objects.create(
             nombre='Turno Nocturno Comida 2', codigo='NOCCOM2',
             hora_entrada=time(21, 0), hora_salida=time(7, 0), cruza_medianoche=True,
-            tiene_comida=True, hora_inicio_comida=time(1, 0), hora_fin_comida=time(1, 30)
+            tiene_comida=True, hora_inicio_comida=time(23, 0), hora_fin_comida=time(1, 0)
         )
         self.assertFalse(tipo.esta_en_horario_comida(time(12, 0)))
 
