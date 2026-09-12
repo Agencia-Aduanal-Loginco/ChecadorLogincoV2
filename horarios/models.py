@@ -17,6 +17,11 @@ class TipoHorario(models.Model):
 
     hora_entrada = models.TimeField(verbose_name='Hora de Entrada')
     hora_salida = models.TimeField(verbose_name='Hora de Salida')
+    cruza_medianoche = models.BooleanField(
+        default=False,
+        verbose_name='Cruza medianoche',
+        help_text='Activar si la salida ocurre al día siguiente (ej. turno 21:00 - 7:00)'
+    )
     tolerancia_minutos = models.IntegerField(
         default=10,
         verbose_name='Tolerancia (minutos)',
@@ -45,8 +50,19 @@ class TipoHorario(models.Model):
         return f"{self.codigo} - {self.nombre} ({self.hora_entrada} - {self.hora_salida})"
 
     def clean(self):
-        if self.hora_salida and self.hora_entrada and self.hora_salida <= self.hora_entrada:
-            raise ValidationError('La hora de salida debe ser posterior a la hora de entrada.')
+        if not self.hora_salida or not self.hora_entrada:
+            return
+        cruza = self.hora_salida <= self.hora_entrada
+        if cruza and not self.cruza_medianoche:
+            raise ValidationError(
+                'La hora de salida debe ser posterior a la hora de entrada. '
+                'Si el turno termina al día siguiente, marca "Cruza medianoche".'
+            )
+        if not cruza and self.cruza_medianoche:
+            raise ValidationError(
+                'Si el turno no cruza medianoche, la hora de salida debe ser posterior '
+                'a la hora de entrada y debes desmarcar "Cruza medianoche".'
+            )
 
     def esta_en_horario_comida(self, hora_actual):
         if not self.tiene_comida or not self.hora_inicio_comida or not self.hora_fin_comida:

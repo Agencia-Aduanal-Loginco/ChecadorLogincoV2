@@ -14,7 +14,7 @@ class TipoHorarioAdmin(admin.ModelAdmin):
             'fields': ('nombre', 'codigo', 'descripcion', 'color')
         }),
         ('Horario', {
-            'fields': ('hora_entrada', 'hora_salida', 'tolerancia_minutos')
+            'fields': ('hora_entrada', 'hora_salida', 'cruza_medianoche', 'tolerancia_minutos')
         }),
         ('Comida', {
             'fields': ('tiene_comida', 'hora_inicio_comida', 'hora_fin_comida')
