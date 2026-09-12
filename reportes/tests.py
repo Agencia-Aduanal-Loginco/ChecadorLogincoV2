@@ -3,6 +3,8 @@ from datetime import date
 from django.contrib.auth.models import User
 from django.core import mail
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
 from django.template.loader import render_to_string
 from django.test import TestCase
@@ -86,6 +88,19 @@ class ObtenerDatosReporteEmpresaTests(TestCase):
         self.assertNotIn('CB001', codigos)
         self.assertEqual(datos['empresa'], self.empresa_a)
 
+    def test_con_empresa_filtra_tambien_los_registros_de_asistencia(self):
+        from registros.models import RegistroAsistencia
+        RegistroAsistencia.objects.create(
+            empleado=self.empleado_a, fecha=date(2026, 1, 5), hora_entrada='09:00'
+        )
+        RegistroAsistencia.objects.create(
+            empleado=self.empleado_b, fecha=date(2026, 1, 5), hora_entrada='09:00'
+        )
+
+        datos = obtener_datos_reporte(date(2026, 1, 1), date(2026, 1, 31), empresa=self.empresa_a)
+
+        self.assertEqual(datos['total_registros'], 1)
+
 
 class _DestinatarioFake:
     def __init__(self, email):
@@ -166,3 +181,46 @@ class SchedulerReporteDiarioMultiEmpresaTests(TestCase):
         self.assertEqual(
             LogReporte.objects.filter(tipo_reporte='diario', estado='enviado').count(), 2
         )
+        self.assertTrue(
+            LogReporte.objects.filter(
+                tipo_reporte='diario', estado='enviado', empresa=self.empresa_a
+            ).exists()
+        )
+        self.assertTrue(
+            LogReporte.objects.filter(
+                tipo_reporte='diario', estado='enviado', empresa=self.empresa_b
+            ).exists()
+        )
+
+
+class EnviarReporteCommandEmpresaTests(TestCase):
+    def setUp(self):
+        # get_or_create: la migracion de backfill de empleados (Task 3) ya
+        # crea LOGINCO en la base de datos de test antes de setUp().
+        self.empresa_a, _ = Empresa.objects.get_or_create(
+            codigo='LOGINCO', defaults={'nombre': 'Loginco'}
+        )
+        self.empresa_b = Empresa.objects.create(nombre='Otra SA', codigo='OTRA')
+
+        user_a = User.objects.create_user(username='cmd_a', password='x')
+        Empleado.objects.create(user=user_a, codigo_empleado='CMDA001', empresa=self.empresa_a)
+        user_b = User.objects.create_user(username='cmd_b', password='x')
+        Empleado.objects.create(user=user_b, codigo_empleado='CMDB001', empresa=self.empresa_b)
+
+        config_a = ConfiguracionReporte.objects.create(tipo='diario', empresa=self.empresa_a, activo=True)
+        DestinatarioReporte.objects.create(configuracion=config_a, nombre='RH Loginco', email='rh@loginco.test')
+
+        config_b = ConfiguracionReporte.objects.create(tipo='diario', empresa=self.empresa_b, activo=True)
+        DestinatarioReporte.objects.create(configuracion=config_b, nombre='RH Otra', email='rh@otra.test')
+
+    def test_requiere_empresa_para_reportes_de_asistencia(self):
+        with self.assertRaises(CommandError):
+            call_command('enviar_reporte', 'diario')
+
+    def test_scoped_a_una_sola_empresa(self):
+        call_command('enviar_reporte', 'diario', '--empresa', 'LOGINCO')
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['rh@loginco.test'])
+        self.assertIn('CMDA001', mail.outbox[0].alternatives[0][0])
+        self.assertNotIn('CMDB001', mail.outbox[0].alternatives[0][0])

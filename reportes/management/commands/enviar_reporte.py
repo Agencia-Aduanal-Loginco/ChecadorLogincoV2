@@ -40,6 +40,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Solo generar el archivo Excel y guardarlo en disco sin enviar email'
         )
+        parser.add_argument(
+            '--empresa',
+            type=str,
+            help='Codigo de la empresa (requerido para reportes de asistencia: diario, semanal, quincenal)'
+        )
 
     def handle(self, *args, **options):
         tipo = options['tipo']
@@ -83,8 +88,21 @@ class Command(BaseCommand):
         else:
             raise CommandError('No se pudo determinar el rango de fechas')
 
+        from organizacion.models import Empresa
+
+        empresa_codigo = options.get('empresa')
+        if not empresa_codigo:
+            raise CommandError(
+                f'--empresa es requerido para reportes de asistencia (tipo={tipo}). '
+                f'Use --empresa <codigo>, por ejemplo --empresa LOGINCO'
+            )
+        try:
+            empresa = Empresa.objects.get(codigo=empresa_codigo)
+        except Empresa.DoesNotExist:
+            raise CommandError(f'No existe una empresa con codigo "{empresa_codigo}"')
+
         self.stdout.write(f'Generando reporte {tipo}: {fecha_inicio} al {fecha_fin}')
-        datos = obtener_datos_reporte(fecha_inicio, fecha_fin)
+        datos = obtener_datos_reporte(fecha_inicio, fecha_fin, empresa=empresa)
 
         self.stdout.write(f'  Empleados: {datos["total_empleados"]}')
         self.stdout.write(f'  Registros: {datos["total_registros"]}')
@@ -101,9 +119,9 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f'  Archivo guardado: {nombre}'))
                 return
 
-        destinatarios = self._get_destinatarios(tipo, options, ConfiguracionReporte)
+        destinatarios = self._get_destinatarios(tipo, options, ConfiguracionReporte, empresa=empresa)
         try:
-            num_enviados = enviar_reporte(tipo, datos, destinatarios, archivo_excel=archivo_excel)
+            num_enviados = enviar_reporte(tipo, datos, destinatarios, archivo_excel=archivo_excel, empresa=empresa)
             self.stdout.write(self.style.SUCCESS(f'Reporte {tipo} enviado a {num_enviados} destinatarios'))
         except Exception as e:
             raise CommandError(f'Error al enviar reporte: {e}')
@@ -239,7 +257,7 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    def _get_destinatarios(self, tipo, options, ConfiguracionReporte):
+    def _get_destinatarios(self, tipo, options, ConfiguracionReporte, empresa=None):
         if options['email']:
             class _Dest:
                 def __init__(self, email):
@@ -247,7 +265,10 @@ class Command(BaseCommand):
             self.stdout.write(f'  Enviando a email de prueba: {options["email"]}')
             return [_Dest(options['email'])]
         else:
-            config = ConfiguracionReporte.objects.filter(tipo=tipo, activo=True).first()
+            filtros = {'tipo': tipo, 'activo': True}
+            if empresa is not None:
+                filtros['empresa'] = empresa
+            config = ConfiguracionReporte.objects.filter(**filtros).first()
             if not config:
                 raise CommandError(
                     f'No hay configuracion activa para reporte {tipo}. Cree una en el admin Django.'
