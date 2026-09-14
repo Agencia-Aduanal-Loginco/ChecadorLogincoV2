@@ -63,9 +63,9 @@ urlpatterns = [
     path('marcar-asistencia/', views.marcar_asistencia_view, name='marcar_asistencia'),
 
     # Pagina principal - Reconocimiento Facial
-    path('', facial_recognition_page, name='home'),
+    path('checador/', facial_recognition_page, name='facial_recognition_comida'),
     path('facial/', facial_recognition_page, name='facial_recognition'),
-    path('checador/', facial_recognition_comida_page, name='facial_recognition_comida'),
+    path('', facial_recognition_comida_page, name='home'),
 
     # Organizacion
     path('organigrama/', organigrama_view, name='organigrama'),
